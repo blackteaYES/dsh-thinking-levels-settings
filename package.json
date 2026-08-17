@@ -33,9 +33,13 @@
   "scripts": {
     "types": "tsc --declaration --emitDeclarationOnly --outDir lib/types --noEmit false --rootDir src --project tsconfig.json",
     "bundle": "tsdown && npm run types",
-    "watch": "tsdown --watch"
+    "watch": "tsdown --watch",
+    "prepare": "npm run bundle"
   },
   "dsh": {
+    "bundle": {
+      "patch": "./profile.patch.yml"
+    },
     "client": {
       "platform": "web",
       "inject": [
