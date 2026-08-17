@@ -30,7 +30,35 @@ INSTALL.html        # 完整图文教程
 cordis.patch.yml   # 一行 patch：把本插件挂进 profile 的 cordis.patch.yml
 ```
 
-## 在新 DSH 中安装（构建产物法：只需要使用）
+## 在新 DSH 中安装
+
+### 方式 1：git 直装（官方 git 托管安装，最简）
+
+```sh
+dsh plugin --profile web add github:blackteaYES/dsh-thinking-levels-settings
+```
+
+pnpm 自动：克隆仓库 → 运行 `prepare` 脚本（`npm run bundle`，自包含构建，产出 `lib/`）→
+reconcile 识别 `dsh.bundle` → 自动加入 `dsh.profile.bundles`。无需下载 tarball、无需手动编辑任何文件。
+
+> ⚠️ 已知兼容性提示（官方 publish 文档同样预告了这道坎）：
+> - **pnpm 8/9 + dsh rc.6**：如遇 `ERR_PNPM_ADDING_TO_ROOT`（workspace-root 保护），加 `-w` 即可：
+>   `dsh plugin --profile web add -w github:blackteaYES/dsh-thinking-levels-settings`
+> - **pnpm ≥10**：pnpm 拒绝运行 git 依赖的 `prepare` 脚本（官方行为），dsh 会提示把 pnpm 打印的包键
+>   加进 profile 的 `pnpm-workspace.yaml` 的 `allowBuilds`，然后重新执行 `add`（官方文档原文指引）。
+> - 建议锁定 commit：`github:blackteaYES/dsh-thinking-levels-settings#<sha>`
+
+### 方式 2：tarball 安装（官方 tarball 交付，需要 dsh CLI + pnpm）
+
+从 [Releases](https://github.com/blackteaYES/dsh-thinking-levels-settings/releases) 下载
+`dsh-thinking-levels-settings-<version>.tgz`，然后：
+
+```sh
+dsh plugin --profile web add ./dsh-thinking-levels-settings-2.0.0.tgz
+# 如遇 ERR_PNPM_ADDING_TO_ROOT 加 -w：dsh plugin --profile web add -w ./dsh-thinking-levels-settings-2.0.0.tgz
+```
+
+### 方式 3：一键脚本（无 pnpm 环境）
 
 1. 把插件目录复制到 profile 的 packages 下（目录名必须是 `dsh-thinking-levels-settings`）：
 

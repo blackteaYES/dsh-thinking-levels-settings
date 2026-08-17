@@ -110,10 +110,31 @@
   无论哪种安装形态，最后一步都是 <strong>重启 dsh + 硬刷新浏览器</strong>。
 </div>
 
-<h2 id="install-new">2. 在新 DSH 中安装（推荐：官方 dsh plugin add）</h2>
+<h2 id="install-new">2. 在新 DSH 中安装（官方 dsh plugin add）</h2>
 <p>适用：你只需要用这个插件。前提：机器上有 <strong>dsh CLI</strong> 和 <strong>pnpm</strong>
   （<code>dsh plugin</code> 是一个 pnpm 转发器）。这是 deepseek-harness 官方 publish 文档推荐的安装方式。</p>
 
+<h3 id="git-install">2.1 git 直装（官方 git 托管安装，最简）</h3>
+<div class="step"><span class="step-num">1</span><strong>一条命令</strong>
+  <pre><code>dsh plugin --profile web add github:blackteaYES/dsh-thinking-levels-settings</code></pre>
+  <p>pnpm 自动：克隆仓库 → 运行 <code>prepare</code> 脚本（<code>npm run bundle</code>，自包含构建，
+  产出 <code>lib/</code>）→ reconcile 识别 <code>dsh.bundle</code> → 自动加入 <code>dsh.profile.bundles</code>。
+  <strong>无需下载 tarball，无需手动编辑任何文件。</strong></p>
+</div>
+<div class="note warn"><strong>已知兼容性提示</strong>（官方 publish 文档同样预告了这道坎）：
+  <ul>
+    <li><strong>pnpm 8/9 + dsh rc.6</strong>：如遇 <code>ERR_PNPM_ADDING_TO_ROOT</code>（workspace-root 保护），
+      加 <code>-w</code> 即可：<code>dsh plugin --profile web add -w github:blackteaYES/dsh-thinking-levels-settings</code>。
+      这是 dsh rc.6 转发 pnpm 时未适配 pnpm 8+ 的 workspace 保护所致，与插件本身无关。</li>
+    <li><strong>pnpm ≥10</strong>：pnpm 会拒绝运行 git 依赖的 <code>prepare</code> 脚本（官方行为），
+      dsh 会提示把 pnpm 打印的包键加进 profile 的 <code>pnpm-workspace.yaml</code> 的
+      <code>allowBuilds</code>，然后重新执行 <code>add</code>（官方文档原文指引）。</li>
+    <li>建议锁定 commit：<code>github:blackteaYES/dsh-thinking-levels-settings#&lt;sha&gt;</code>
+      （官方建议，防止仓库后续推送改变实际运行内容）。</li>
+  </ul>
+</div>
+
+<h3 id="tarball-install">2.2 tarball 安装（官方 tarball 交付）</h3>
 <div class="step"><span class="step-num">1</span><strong>拿到发布包（tarball）</strong>
   <p>从 release 下载 <code>dsh-thinking-levels-settings-&lt;version&gt;.tgz</code>（约 20KB），
   或用本目录的 <code>release.sh</code> 一键生成：</p>

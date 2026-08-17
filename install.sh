@@ -85,7 +85,19 @@ if [ -n "$DSH_BIN" ] && [ "$HAS_PNPM" = "1" ] && [ "${SKIP_PNPM:-0}" != "1" ]; t
     echo "    grep -o '\"id\":\"$PKG_NAME\"[^}]*}' <(curl -s http://127.0.0.1:3080/)"
     exit 0
   fi
-  echo "==> dsh plugin add 失败，回退路径 B ..."
+  # pnpm 8/9 的 workspace-root 保护（ERR_PNPM_ADDING_TO_ROOT）—— 加 -w 重试
+  echo "==> 首次 add 失败（可能是 pnpm workspace-root 保护），尝试加 -w 重试 ..."
+  if "$DSH_BIN" plugin --profile "$PROFILE" add -w "$TARBALL"; then
+    echo ""
+    echo "✔ 安装完成（官方 bundle 方式，-w 重试成功）。"
+    echo ""
+    echo "  下一步:"
+    echo "    1. 重启 dsh $PROFILE 服务"
+    echo "    2. 浏览器硬刷新 (Ctrl+Shift+R)"
+    echo "    3. 设置 -> 思考级别 确认页面"
+    exit 0
+  fi
+  echo "==> dsh plugin add 失败（含 -w 重试），回退路径 B ..."
 fi
 
 # ============ 路径 B：手工安装（file: 依赖 + cordis.patch.yml） ============

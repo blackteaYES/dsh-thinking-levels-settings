@@ -16,7 +16,7 @@
 
 ## 📦 安装
 
-### 方式 A：官方 `dsh plugin add`（推荐，需要 dsh CLI + pnpm）
+### 方式 A：官方 `dsh plugin add` tarball（需要 dsh CLI + pnpm）
 
 从 **[Releases](https://github.com/blackteaYES/dsh-thinking-levels-settings/releases)** 下载
 `dsh-thinking-levels-settings-<version>.tgz`，然后：
@@ -28,6 +28,22 @@ dsh plugin --profile web add ./dsh-thinking-levels-settings-2.0.0.tgz
 - 自动加入 `dsh.profile.bundles`（reconcile 识别 `dsh.bundle`）
 - **无需手动编辑任何文件**
 - 完成后重启 dsh，浏览器硬刷新（Ctrl+Shift+R）
+
+### 方式 A′：git 直装（官方 publish 文档的 git 托管安装）
+
+```sh
+dsh plugin --profile web add github:blackteaYES/dsh-thinking-levels-settings
+```
+
+pnpm 自动克隆仓库 → 运行 `prepare` 脚本（`npm run bundle` 自包含构建，产出 `lib/`）→
+reconcile 识别 `dsh.bundle` → 自动加入 `dsh.profile.bundles`。**无需下载 tarball，无需手动编辑任何文件。**
+
+> ⚠️ **已知兼容性提示**（官方 publish 文档也预告了）：
+> - **pnpm 8/9 + dsh rc.6**：如遇 `ERR_PNPM_ADDING_TO_ROOT`（workspace-root 保护），加 `-w` 即可：
+>   `dsh plugin --profile web add -w github:blackteaYES/dsh-thinking-levels-settings`
+> - **pnpm ≥10**：pnpm 会拒绝运行 git 依赖的 `prepare` 脚本，dsh 会提示把包键加进 profile 的
+>   `pnpm-workspace.yaml` 的 `allowBuilds`，然后重新执行 `add`（官方文档原文指引）。
+> - 建议锁定 commit：`github:blackteaYES/dsh-thinking-levels-settings#<sha>`（官方建议，防止仓库后续推送改变实际运行内容）。
 
 ### 方式 B：一键脚本（无 pnpm 环境）
 
