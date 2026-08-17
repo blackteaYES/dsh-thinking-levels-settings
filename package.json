@@ -27,7 +27,8 @@
     "lib/client.js",
     "lib/types/**/*.d.ts",
     "INSTALL.md",
-    "profile.patch.yml"
+    "profile.patch.yml",
+    "INSTALL.html"
   ],
   "scripts": {
     "types": "tsc --declaration --emitDeclarationOnly --outDir lib/types --noEmit false --rootDir src --project tsconfig.json",

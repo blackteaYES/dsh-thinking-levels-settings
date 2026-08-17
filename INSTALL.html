@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>dsh-thinking-levels-settings — 安装与导出教程</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1f2328; --muted: #59636e;
+    --border: #d1d9e0; --accent: #0969da; --accent-bg: #ddf4ff;
+    --code-bg: #f6f8fa; --ok: #1a7f37; --warn: #9a6700; --err: #cf222e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117; --fg: #e6edf3; --muted: #8b949e;
+      --border: #30363d; --accent: #4493f8; --accent-bg: #0c2d6b;
+      --code-bg: #161b22; --ok: #3fb950; --warn: #d29922; --err: #f85149;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 15px/1.7 -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 32px 20px 80px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  h2 { font-size: 20px; margin: 40px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 16px; margin: 24px 0 8px; }
+  p, li { color: var(--fg); }
+  .sub { color: var(--muted); margin-bottom: 24px; }
+  code {
+    background: var(--code-bg); border-radius: 4px; padding: 1px 5px;
+    font: 13px/1.5 "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px 14px; overflow-x: auto; margin: 10px 0;
+  }
+  pre code { background: none; padding: 0; }
+  .note {
+    border: 1px solid var(--border); border-left: 4px solid var(--accent);
+    background: var(--accent-bg); border-radius: 6px; padding: 10px 14px; margin: 14px 0;
+  }
+  .ok { border-left-color: var(--ok); }
+  .warn { border-left-color: var(--warn); }
+  .err { border-left-color: var(--err); }
+  .step { margin: 14px 0 20px; }
+  .step-num {
+    display: inline-block; min-width: 24px; height: 24px; line-height: 24px;
+    text-align: center; border-radius: 50%; background: var(--accent); color: #fff;
+    font-weight: 700; font-size: 13px; margin-right: 8px;
+  }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 7px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--code-bg); }
+  kbd {
+    background: var(--code-bg); border: 1px solid var(--border); border-bottom-width: 2px;
+    border-radius: 4px; padding: 0 5px; font-size: 12px;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .toc { display: grid; gap: 4px; margin: 12px 0 24px; padding: 12px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--code-bg); }
+  .toc a { color: var(--fg); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>dsh-thinking-levels-settings 安装与导出教程</h1>
+<p class="sub">DSH Web 自定义插件 · 官方 client-plugin 形态（v2.0.0）· 适用于任何 DSH 安装（rc.6 及同架构版本）</p>
+
+<div class="toc">
+  <strong>目录</strong>
+  <a href="#what">1. 这是什么</a>
+  <a href="#install-new">2. 在新 DSH 中安装（推荐：构建产物法）</a>
+  <a href="#install-source">3. 在新 DSH 中安装（源码法：可继续开发）</a>
+  <a href="#verify">4. 验证安装是否成功</a>
+  <a href="#export">5. 导出给其他 DSH</a>
+  <a href="#update">6. 覆盖更新已安装的插件</a>
+  <a href="#uninstall">7. 卸载</a>
+  <a href="#troubleshoot">8. 常见问题</a>
+  <a href="#structure">9. 包结构与官方契约速查</a>
+</div>
+
+<h2 id="what">1. 这是什么</h2>
+<p>
+  <code>dsh-thinking-levels-settings</code> 给 DSH Web 的 <strong>设置 → 思考级别</strong> 新增一页，
+  用于为自定义 <code>llm-pi-ai</code> 提供商的每个模型配置 <code>reasoningEfforts</code>
+  （off / minimal / low / medium / high / xhigh / max），并通过官方 Settings wire 持久化到
+  <code>~/.dsh/settings.yaml</code>。
+</p>
+<p>它是 <strong>纯客户端插件</strong>：node 半（<code>lib/index.js</code>）的 <code>apply</code> 为空，
+  浏览器半（<code>lib/client.js</code>）以官方 <code>window.__ModuleLoader__.load</code> 闭包工厂注册
+  <code>settings.section</code> 槽位贡献。安装 <strong>不需要</strong> 修改 <code>dsh.profile.bundles</code>，
+  也不需要 <code>dsh.bundle</code> —— 以一行 patch 挂载，与官方 <code>dsh plugin add</code> 语义一致。</p>
+
+<div class="note ok">
+  <strong>关键机制</strong>：DSH 的 <code>dsh-client-modules</code> 会扫描 profile loader 条目，
+  对声明了 <code>dsh.client</code>（platform: web）且 <code>exports["./client"]</code> 指向构建产物的包，
+  把 <code>lib/client.js</code> 作为 <code>/plugins/&lt;id&gt;/client.js</code> 提供给浏览器。
+  所以安装 = <strong>包目录就位 + 依赖声明 + 一行 patch</strong> 三件事。
+</div>
+
+<h2 id="install-new">2. 在新 DSH 中安装（推荐：构建产物法）</h2>
+<p>适用：你只需要用这个插件，<strong>不需要改它的源码</strong>。把整个包装进 profile 即可，不需要安装任何构建工具。</p>
+
+<div class="step"><span class="step-num">1</span><strong>把插件目录复制到 profile 的 packages 下</strong>
+  <p>DSH 安装后，在用户的 home 下会生成 <code>~/.dsh/profiles/web/</code>（<code>web</code> 是默认 profile）。
+  在该 profile 下创建 <code>packages/</code> 目录（如果不存在），然后把整个
+  <code>dsh-thinking-levels-settings/</code> 目录复制进去：</p>
+  <pre><code># 假设插件目录在当前目录下，名为 dsh-thinking-levels-settings
+mkdir -p ~/.dsh/profiles/web/packages
+cp -r dsh-thinking-levels-settings ~/.dsh/profiles/web/packages/
+# 确认关键文件都在：
+ls ~/.dsh/profiles/web/packages/dsh-thinking-levels-settings/lib/</code></pre>
+  <p>必须包含 <code>lib/client.js</code>、<code>lib/index.js</code>、<code>lib/invariant.js</code>、
+  <code>lib/types/</code>。目录名 <strong>必须</strong> 是 <code>dsh-thinking-levels-settings</code>（依赖按名字解析）。</p>
+</div>
+
+<div class="step"><span class="step-num">2</span><strong>在 profile 的 package.json 里声明依赖</strong>
+  <p>编辑 <code>~/.dsh/profiles/web/package.json</code>，在 <code>dependencies</code> 中加入：</p>
+  <pre><code>{
+  "dependencies": {
+    "dsh-thinking-levels-settings": "file:./packages/dsh-thinking-levels-settings"
+  }
+}</code></pre>
+  <p>注意 <code>file:</code> 指向的是 <strong>相对 profile 目录</strong> 的路径。</p>
+</div>
+
+<div class="step"><span class="step-num">3</span><strong>把插件挂进 profile 的 patch 层</strong>
+  <p>编辑 <code>~/.dsh/profiles/web/cordis.patch.yml</code>（如果不存在就创建），追加：</p>
+  <pre><code>- insert:
+    - id: ui-thinking-levels-settings
+      name: dsh-thinking-levels-settings</code></pre>
+  <p>这会在加载树里插入一行 loader 条目，dsh-client-modules 据此扫描并暴露 client bundle。</p>
+</div>
+
+<div class="step"><span class="step-num">4</span><strong>安装依赖并重启 </strong>
+  <pre><code>cd ~/.dsh/profiles/web
+npm install --package-lock=false --ignore-scripts</code></pre>
+  <p>这一步会在 <code>~/.dsh/profiles/web/node_modules/</code> 下创建指向
+  <code>../packages/dsh-thinking-levels-settings</code> 的符号链接。</p>
+  <p>然后重启 dsh：<code>Ctrl+C</code> 停掉当前 <code>dsh web</code>，重新运行
+  <code>npx @deepseek-ai/dsh web</code>（或你平时的启动命令）。打开浏览器，
+  <strong>硬刷新</strong>（<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>）一次。</p>
+</div>
+
+<div class="note ok"><strong>完成</strong>：进入 <strong>设置 → 思考级别</strong> 即可看到页面。
+  若已有 <code>llm-pi-ai</code> 配置，会按 provider/模型列出可编辑的档位；页面写入将持久化到 <code>~/.dsh/settings.yaml</code>。</div>
+
+<h2 id="install-source">3. 在新 DSH 中安装（源码法：可继续开发）</h2>
+<p>
+  适用：你拿到的是 <strong>源码包</strong>（含 <code>src/</code>、<code>tsdown.config.ts</code>、<code>tsconfig.json</code>），
+  想在这台机器上<strong>继续开发和重新构建</strong>。前 3 步与“构建产物法”完全相同，第 4 步改为构建：
+</p>
+
+<div class="step"><span class="step-num">4′</span><strong>依赖安装与构建</strong>
+  <pre><code>cd ~/.dsh/profiles/web/packages/dsh-thinking-levels-settings
+
+# 1) 安装构建工具链与官方 @deepseek-ai client 依赖（需要网络，写入项目 node_modules）
+npm install --ignore-scripts
+
+# 2) 构建（tsdown 产出 lib/index.js + lib/client.js + map，随后 tsc 产出 lib/types）
+npm run bundle
+
+# 3) 开发模式：改 src/ 后自动重建（client-modules 的 HMR 会检测到 client.js rev 变化并热更新）
+npm run watch</code></pre>
+  <p>构建完成后回到第 4 步（profile 级 <code>npm install</code> 建立链接 + 重启）。</p>
+</div>
+
+<div class="note warn"><strong>注意</strong>：源码构建需要 Node.js 22.19+ / 24+（与 DSH 一致），
+  且首次 <code>npm install</code> 需要能访问 npm registry（国内可用镜像加速）。构建产物 <code>lib/</code> 不入 git，
+  任何时候 <code>npm run bundle</code> 都能复原。</div>
+
+<h2 id="verify">4. 验证安装是否成功</h2>
+
+<table>
+  <tr><th>检查项</th><th>命令 / 位置</th><th>期望</th></tr>
+  <tr>
+    <td>包目录就位</td>
+    <td><code>ls ~/.dsh/profiles/web/packages/dsh-thinking-levels-settings/lib/</code></td>
+    <td>看到 <code>client.js</code>、<code>index.js</code>、<code>invariant.js</code>、<code>types/</code></td>
+  </tr>
+  <tr>
+    <td>符号链接建立</td>
+    <td><code>ls -la ~/.dsh/profiles/web/node_modules/ | grep thinking</code></td>
+    <td><code>dsh-thinking-levels-settings -&gt; ../packages/dsh-thinking-levels-settings</code></td>
+  </tr>
+  <tr>
+    <td>patch 行存在</td>
+    <td><code>grep -A1 "ui-thinking-levels-settings" ~/.dsh/profiles/web/cordis.patch.yml</code></td>
+    <td>输出 <code>id: ui-thinking-levels-settings</code> 与 <code>name: dsh-thinking-levels-settings</code></td>
+  </tr>
+  <tr>
+    <td>包被 client-modules 暴露</td>
+    <td><code>curl -s http://127.0.0.1:3080/ | grep -o '"id":"dsh-thinking-levels-settings"[^}]*}'</code></td>
+    <td>出现 <code>"url":"/plugins/dsh-thinking-levels-settings/client.js?rev=…"</code></td>
+  </tr>
+  <tr>
+    <td>bundle 可拉取</td>
+    <td><code>curl -s http://127.0.0.1:3080/plugins/dsh-thinking-levels-settings/client.js | head -c 60</code></td>
+    <td>以 <code>window.__ModuleLoader__.load({</code> 开头</td>
+  </tr>
+  <tr>
+    <td>页面可见</td>
+    <td>浏览器 → 设置</td>
+    <td>左侧出现“思考级别”入口</td>
+  </tr>
+</table>
+
+<h2 id="export">5. 导出给其他 DSH</h2>
+<p>把插件迁移到另一台机器的 DSH 安装，本质就是 <strong>把包目录打包带走，在新机器上重复“构建产物法”的 4 步</strong>。</p>
+
+<div class="step"><span class="step-num">1</span><strong>（可选但推荐）先完整构建一次</strong>
+  <pre><code>cd ~/.dsh/profiles/web/packages/dsh-thinking-levels-settings
+npm run bundle   # 确保 lib/ 是最新产物（含 invariant.js 与 types/）</code></pre>
+</div>
+
+<div class="step"><span class="step-num">2</span><strong>打成一个单一压缩包（保证目录名）</strong>
+  <p>用 <code>tar</code> 打包 <strong>目录本身</strong>，这样解包后目录名一定是 <code>dsh-thinking-levels-settings</code>：</p>
+  <pre><code>cd ~/.dsh/profiles/web/packages
+tar -czf dsh-thinking-levels-settings.tar.gz dsh-thinking-levels-settings
+# 也可以不加压缩：
+# zip -r dsh-thinking-levels-settings.zip dsh-thinking-levels-settings</code></pre>
+  <div class="note">打包的是 <strong>源码 + 构建产物</strong> 的组合（含 <code>src/</code> 和 <code>lib/</code>），
+  对方拿到后既可以纯安装，也可以继续开发。如果不希望对方改动源码，也可以只打包
+  <code>package.json</code> + <code>lib/</code> + <code>profile.patch.yml</code> + <code>INSTALL.md</code> 四个部分。</div>
+</div>
+
+<div class="step"><span class="step-num">3</span><strong>在目标机器的 DSH 安装中解包</strong>
+  <pre><code>mkdir -p ~/.dsh/profiles/web/packages
+cd ~/.dsh/profiles/web/packages
+tar -xzf dsh-thinking-levels-settings.tar.gz
+ls dsh-thinking-levels-settings/lib/   # 确认 client.js / index.js / invariant.js / types</code></pre>
+</div>
+
+<div class="step"><span class="step-num">4</span><strong>执行“构建产物法”的第 2–4 步</strong>
+  <ol>
+    <li>在 <code>~/.dsh/profiles/web/package.json</code> 的 <code>dependencies</code> 加
+      <code>"dsh-thinking-levels-settings": "file:./packages/dsh-thinking-levels-settings"</code></li>
+    <li>在 <code>~/.dsh/profiles/web/cordis.patch.yml</code> 追加 <code>profile.patch.yml</code> 的内容</li>
+    <li><code>cd ~/.dsh/profiles/web && npm install --package-lock=false --ignore-scripts</code>，重启 <code>dsh web</code>，硬刷新浏览器</li>
+  </ol>
+</div>
+
+<div class="note ok"><strong>完整示例（一条命令到位的脚本版）</strong>：把下面存成 <code>install-plugin.sh</code>，在新机器上以
+  <code>bash install-plugin.sh /path/to/dsh-thinking-levels-settings.tar.gz</code> 运行：<br><br>
+  <pre><code>#!/usr/bin/env bash
+set -euo pipefail
+ARCHIVE="${1:?用法: install-plugin.sh &lt;插件压缩包路径&gt;}"
+PROFILE="${DSH_PROFILE:-web}"
+PACKAGES="$HOME/.dsh/profiles/$PROFILE/packages"
+mkdir -p "$PACKAGES"
+tar -xzf "$ARCHIVE" -C "$PACKAGES"
+PKG="$PACKAGES/dsh-thinking-levels-settings"
+
+# 1) 依赖声明（幂等：已存在则跳过）
+if ! grep -q 'dsh-thinking-levels-settings' "$HOME/.dsh/profiles/$PROFILE/package.json"; then
+  node -e '
+    const fs=require("fs"), p=process.argv[1];
+    const j=JSON.parse(fs.readFileSync(p,"utf8"));
+    (j.dependencies ??= {})["dsh-thinking-levels-settings"]="file:./packages/dsh-thinking-levels-settings";
+    fs.writeFileSync(p, JSON.stringify(j, null, 2)+"\n");
+  ' "$HOME/.dsh/profiles/$PROFILE/package.json"
+fi
+
+# 2) patch 行（幂等）
+PATCH="$HOME/.dsh/profiles/$PROFILE/cordis.patch.yml"
+if ! grep -q 'name: dsh-thinking-levels-settings' "$PATCH" 2>/dev/null; then
+  printf '\n- insert:\n    - id: ui-thinking-levels-settings\n      name: dsh-thinking-levels-settings\n' >> "$PATCH"
+fi
+
+# 3) 建立链接 + 提示重启
+cd "$HOME/.dsh/profiles/$PROFILE"
+npm install --package-lock=false --ignore-scripts
+echo "完成：请重启 dsh $PROFILE 并硬刷新浏览器（设置 -> 思考级别）"</code></pre></div>
+
+<h2 id="update">6. 覆盖更新已安装的插件</h2>
+<p>新版本到手后，<strong>保持 profile 的依赖声明和 patch 行不变</strong>，只更新包目录内容：</p>
+<pre><code># 备份旧版（可选）
+mv ~/.dsh/profiles/web/packages/dsh-thinking-levels-settings \
+   ~/.dsh/profiles/web/packages/dsh-thinking-levels-settings.old
+
+# 放入新版
+cp -r dsh-thinking-levels-settings ~/.dsh/profiles/web/packages/
+
+# node_modules 里的符号链接仍指向 ../packages/dsh-thinking-levels-settings，无需重新 install
+cd ~/.dsh/profiles/web
+npm install --package-lock=false --ignore-scripts   # 仅刷新 lockfile 引用（可选）
+
+# 重启 dsh web + 硬刷新浏览器</code></pre>
+<p>如果新版本的 <code>package.json</code> 变了（比如依赖增加），才必须重新执行 profile 级 <code>npm install</code>。</p>
+
+<h2 id="uninstall">7. 卸载</h2>
+<pre><code>cd ~/.dsh/profiles/web
+# 1) 从 package.json 的 dependencies 删掉 dsh-thinking-levels-settings
+# 2) 从 cordis.patch.yml 删掉 - insert: … ui-thinking-levels-settings 段
+# 3) 删除包目录与链接：
+rm -rf node_modules/dsh-thinking-levels-settings packages/dsh-thinking-levels-settings
+# 4) 重启 dsh web，硬刷新浏览器</code></pre>
+
+<h2 id="troubleshoot">8. 常见问题</h2>
+
+<h3>装完打开设置没有“思考级别”入口</h3>
+<ul>
+  <li>确认重启了 dsh 进程并<strong>硬刷新</strong>（不是普通刷新）。</li>
+  <li>跑验证表的 curl 检查：boot 清单里没有该条目 = patch 行没生效或 loader 没扫到；
+    有条目但页面没有 = 浏览器缓存了旧 bundle。</li>
+  <li>确认 <code>cordis.patch.yml</code> 是顶层 YAML 数组（<code>- insert:</code> 顶格写）。</li>
+</ul>
+
+<h3>页面报“llm-pi-ai 设置尚未加载”</h3>
+<p>说明当前 profile 没有注册 <code>llm-pi-ai</code> 命名空间（未配置 <code>dsh-llm-pi-ai</code> 提供方）。
+  这个插件只服务该命名空间；没有 <code>llm-pi-ai</code> 的 provider 配置时页面不会列出模型。</p>
+
+<h3>保存提示“设置已在其他位置更新，请刷新后重试”</h3>
+<p>这是 Settings wire 的 <code>SETTINGS_CONFLICT</code> 冲突保护：另一个窗口/进程改了同一命名空间。
+  刷新页面后重试即可。</p>
+
+<h3>浏览器控制台报模块表 require 错误</h3>
+<p>例如 <code>Cannot find module 'xxx'</code> —— 说明 client bundle 里出现了非平台模块依赖。
+  正式形态的 bundle 只允许 react 等平台模块走 <code>require</code>，其余必须内联；
+  如果你改了 <code>src/client/index.ts</code> 引入了新的 npm 包（非 inline-safe），需要把该包改为内联
+  或在 <code>tsdown.config.ts</code> 的 <code>EXTERNAL_PLATFORM_MODULES</code> 里声明。</p>
+
+<h3>构建时 tsdown 报错</h3>
+<p>先确认 Node 版本（<code>node -v</code> ≥ 22.19）。<code>npm run bundle</code> 需要能访问 npm registry
+  拉取 <code>@deepseek-ai/*</code> 依赖；国内网络可用 <code>--registry=https://registry.npmmirror.com</code> 加速。</p>
+
+<h2 id="structure">9. 包结构与官方契约速查</h2>
+<table>
+  <tr><th>路径</th><th>作用</th><th>来源</th></tr>
+  <tr><td><code>package.json</code></td><td><code>dsh.client</code> 清单、<code>exports</code>（. / ./invariant / ./client / ./src/*）、<code>files</code></td><td>源码维护</td></tr>
+  <tr><td><code>src/index.ts</code></td><td>node 半入口（空 apply）</td><td>源码维护</td></tr>
+  <tr><td><code>src/client/index.ts</code></td><td>浏览器半：<code>settings.section</code> 槽注册 + 页面组件</td><td>源码维护</td></tr>
+  <tr><td><code>src/invariant.ts</code></td><td>invariant companion（包所有权注册）</td><td>源码维护</td></tr>
+  <tr><td><code>tsdown.config.ts</code></td><td>构建配置（官方 tsdown.client.ts 形态）</td><td>源码维护</td></tr>
+  <tr><td><code>lib/index.js</code></td><td>构建产物：node 半</td><td><code>npm run bundle</code></td></tr>
+  <tr><td><code>lib/client.js</code></td><td>构建产物：ModuleLoader 闭包工厂</td><td><code>npm run bundle</code></td></tr>
+  <tr><td><code>lib/invariant.js</code></td><td>构建产物：invariant</td><td><code>npm run bundle</code></td></tr>
+  <tr><td><code>lib/types/**/*.d.ts</code></td><td>类型声明</td><td><code>npm run types</code>（bundle 内联）</td></tr>
+  <tr><td><code>profile.patch.yml</code></td><td>一行 patch 模板</td><td>源码维护</td></tr>
+  <tr><td><code>INSTALL.md</code></td><td>文本版安装说明</td><td>源码维护</td></tr>
+</table>
+
+<div class="note">
+  <strong>官方契约速记</strong>：client 插件 = <code>dsh.client</code> 清单（platform: web）+
+  <code>exports["./client"]</code> → 构建产物 <code>lib/client.js</code>（<code>window.__ModuleLoader__.load</code>
+  闭包工厂，react 等平台模块走注入 require）+ <code>exports["./invariant"]</code> +
+  <code>exports["./src/*"]</code> + <code>files</code> 只含产物与文档。安装侧 = 包目录（file: 依赖）+
+  一行 patch。参考：deepseek-harness <code>packages/client/AGENTS.md</code>、
+  <code>docs/architecture.zh.md</code>、<code>packages/client/tsdown.client.ts</code>。
+</div>
+
+</div>
+</body>
+</html>

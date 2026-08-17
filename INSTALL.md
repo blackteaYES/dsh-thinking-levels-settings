@@ -1,13 +1,19 @@
 # dsh-thinking-levels-settings — 官方形态 client 插件
 
-> 状态：**已按 deepseek-harness 的 client 插件文档（`packages/client/AGENTS.md`、
-> `docs/cookbook/adding-a-package.md`、`packages/client/tsdown.client.ts`）改造为官方标准形态。**
+> **完整图文教程见本目录的 [`INSTALL.html`](INSTALL.html)（安装、导出、验证、卸载、常见问题）。**
+> 以下为文字版速查。
+
+## 这是什么
 
 给 DSH Web 的 **设置 -> 思考级别** 新增一页，为自定义 `llm-pi-ai` 提供商的每个模型配置
 `reasoningEfforts`（off/minimal/low/medium/high/xhigh/max），通过官方 Settings wire
 持久化到 `~/.dsh/settings.yaml`。
 
-## 包结构（官方契约）
+纯客户端插件：node 半（`lib/index.js`）`apply` 为空；浏览器半（`lib/client.js`）以官方
+`window.__ModuleLoader__.load` 闭包工厂注册 `settings.section` 槽位贡献。安装不需要改
+`dsh.profile.bundles`，也不需要 `dsh.bundle` —— 以一行 patch 挂载，与官方 `dsh plugin add` 语义一致。
+
+## 包结构
 
 ```
 package.json        # dsh.client 清单、exports(./client、./invariant、./src/*)、files
@@ -17,18 +23,21 @@ src/invariant.ts    # 配套 invariant companion（注册包所有权）
 tsdown.config.ts    # 官方 tsdown.client.ts 形态（clientBundle + node twin）
 lib/index.js        # 构建产物：node 半（apply=空）
 lib/client.js       # 构建产物：window.__ModuleLoader__.load({id, factory}) 闭包工厂
-lib/types/**        # tsc 生成的类型声明
-INSTALL.md          # 本文件
+lib/invariant.js    # 构建产物：invariant companion
+lib/types/**/*.d.ts # tsc 生成的类型声明
+INSTALL.md          # 本文件（文字版）
+INSTALL.html        # 完整图文教程
 profile.patch.yml   # 一行 patch：把本插件挂进 profile 的 cordis.patch.yml
 ```
 
-## 安装到 DSH profile
+## 在新 DSH 中安装（构建产物法：只需要使用）
 
-1. 把本目录复制到 profile（例如 `~/.dsh/profiles/web/` 下）的
-   `packages/dsh-thinking-levels-settings/`（保留目录名，`file:` 依赖按名字解析）：
+1. 把插件目录复制到 profile 的 packages 下（目录名必须是 `dsh-thinking-levels-settings`）：
 
    ```sh
+   mkdir -p ~/.dsh/profiles/web/packages
    cp -r dsh-thinking-levels-settings ~/.dsh/profiles/web/packages/
+   # 确认 lib/client.js、lib/index.js、lib/invariant.js、lib/types/ 都在
    ```
 
 2. 在 `~/.dsh/profiles/web/package.json` 的 `dependencies` 加：
@@ -49,27 +58,54 @@ profile.patch.yml   # 一行 patch：把本插件挂进 profile 的 cordis.patch
 
    ```sh
    cd ~/.dsh/profiles/web && npm install --package-lock=false --ignore-scripts
-   # 重启 dsh web，刷新浏览器
+   # 重启 dsh web，硬刷新浏览器（Ctrl+Shift+R）
    ```
 
 加载后 `dsh-client-modules` 会扫描 loader 条目，读到本包的 `dsh.client`（platform: web）
 + `exports["./client"]`，把 `lib/client.js` 作为 `/plugins/dsh-thinking-levels-settings/client.js`
- 提供给浏览器，浏览器端 `window.__ModuleLoader__.load` 工厂注册 `apply`/`inject`。
+提供给浏览器，浏览器端 `window.__ModuleLoader__.load` 工厂注册 `apply`/`inject`。
 
-## 开发与构建
+## 在新 DSH 中安装（源码法：可继续开发）
+
+前三步与上面相同；第 4 步改为在插件目录内构建：
 
 ```sh
-npm install     # 安装 tsdown / typescript / @deepseek-ai client 依赖
-npm run bundle  # tsdown 产出 lib/index.js + lib/client.js(+map)，随后 tsc 生成 lib/types
-npm run watch   # tsdown --watch（改 bundle 后 client-modules 的 HMR 会重新哈希 rev）
+cd ~/.dsh/profiles/web/packages/dsh-thinking-levels-settings
+npm install --ignore-scripts   # 安装 tsdown/typescript/@deepseek-ai client 依赖
+npm run bundle                 # tsdown 产出 lib/index.js + lib/client.js(+map)，随后 tsc 生成 lib/types
+npm run watch                  # 开发模式：改 src/ 后自动重建（client-modules HMR 会刷新 rev）
 ```
 
-构建约束与官方一致：
+然后回到第 4 步做 profile 级 `npm install` 并重启。要求 Node.js 22.19+ / 24+。
 
-- `lib/client.js` 是 **CJS 闭包工厂**（`window.__ModuleLoader__.load({id, factory})`），
-  platform 模块（react 等）通过注入的 `require` 从模块表解析（external），其余 wire 层内联。
-- client 包纯 UI：node 半 `apply` 为空；无 host 服务、无事件。
-- `dsh.client.inject` 仅声明模块依赖边（preflight/HMR 差集），不驱动激活顺序。
+## 导出给其他 DSH
+
+```sh
+# 1) 确保 lib/ 是最新构建产物
+cd ~/.dsh/profiles/web/packages/dsh-thinking-levels-settings && npm run bundle
+# 2) 打包目录本身（保证解包后目录名正确）
+cd ~/.dsh/profiles/web/packages
+tar -czf dsh-thinking-levels-settings.tar.gz dsh-thinking-levels-settings
+# 3) 在新机器解包到 ~/.dsh/profiles/web/packages/ 下，然后重复“构建产物法”的第 2-4 步
+```
+
+完整的一键安装脚本（`install-plugin.sh`）见 `INSTALL.html` 第 5 节。
+
+## 验证安装
+
+| 检查 | 命令 | 期望 |
+|---|---|---|
+| 包目录 | `ls ~/.dsh/profiles/web/packages/dsh-thinking-levels-settings/lib/` | client.js / index.js / invariant.js / types |
+| 符号链接 | `ls -la ~/.dsh/profiles/web/node_modules/ \| grep thinking` | 指向 `../packages/dsh-thinking-levels-settings` |
+| patch 行 | `grep -A1 ui-thinking-levels-settings ~/.dsh/profiles/web/cordis.patch.yml` | id + name 两行 |
+| boot 暴露 | `curl -s http://127.0.0.1:3080/ \| grep -o '"id":"dsh-thinking-levels-settings"[^}]*}'` | 有 `/plugins/.../client.js?rev=…` |
+| bundle | `curl -s http://127.0.0.1:3080/plugins/dsh-thinking-levels-settings/client.js \| head -c 60` | 以 `window.__ModuleLoader__.load({` 开头 |
+
+## 覆盖更新 / 卸载
+
+更新：备份旧目录 → 放入新版 → （依赖没变则无需重装）重启 + 硬刷新。
+卸载：从 `package.json` 删依赖、从 `cordis.patch.yml` 删 patch 行、删包目录与链接，重启。
+详见 `INSTALL.html` 第 6、7 节。
 
 ## 数据形状
 

@@ -46,6 +46,18 @@ export default defineConfig([
     sourcemap: true,
     fixedExtension: false,
   },
+  // Invariant companion (lib/invariant.js).
+  {
+    entry: ["src/invariant.ts"],
+    outDir: "lib",
+    format: ["esm"],
+    platform: "node",
+    target: "es2024",
+    dts: false,
+    clean: false,
+    sourcemap: true,
+    fixedExtension: false,
+  },
   // Browser client bundle (lib/client.js) — closure-factory ModuleLoader artifact.
   {
     entry: { client: "src/client/index.ts" },
