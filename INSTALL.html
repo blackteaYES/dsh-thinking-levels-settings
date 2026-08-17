@@ -72,7 +72,7 @@
 <div class="toc">
   <strong>目录</strong>
   <a href="#what">1. 这是什么</a>
-  <a href="#install-new">2. 在新 DSH 中安装（推荐：构建产物法）</a>
+  <a href="#install-new">2. 在新 DSH 中安装（方式 A git 直装 / B tarball / C 脚本 / D 手工）</a>
   <a href="#install-source">3. 在新 DSH 中安装（源码法：可继续开发）</a>
   <a href="#verify">4. 验证安装是否成功</a>
   <a href="#export">5. 导出给其他 DSH</a>
@@ -110,11 +110,11 @@
   无论哪种安装形态，最后一步都是 <strong>重启 dsh + 硬刷新浏览器</strong>。
 </div>
 
-<h2 id="install-new">2. 在新 DSH 中安装（官方 dsh plugin add）</h2>
-<p>适用：你只需要用这个插件。前提：机器上有 <strong>dsh CLI</strong> 和 <strong>pnpm</strong>
-  （<code>dsh plugin</code> 是一个 pnpm 转发器）。这是 deepseek-harness 官方 publish 文档推荐的安装方式。</p>
+<h2 id="install-new">2. 在新 DSH 中安装</h2>
+<p>按你的环境选一种方式。方式 A/B 需要 <strong>dsh CLI</strong> 和 <strong>pnpm</strong>
+  （<code>dsh plugin</code> 是一个 pnpm 转发器），这是 deepseek-harness 官方 publish 文档推荐的安装方式。</p>
 
-<h3 id="git-install">2.1 git 直装（官方 git 托管安装，最简）</h3>
+<h3 id="git-install">方式 A：git 直装（官方 git 托管安装，最简）</h3>
 <div class="step"><span class="step-num">1</span><strong>一条命令</strong>
   <pre><code>dsh plugin --profile web add github:blackteaYES/dsh-thinking-levels-settings</code></pre>
   <p>pnpm 自动：克隆仓库 → 运行 <code>prepare</code> 脚本（<code>npm run bundle</code>，自包含构建，
@@ -134,7 +134,7 @@
   </ul>
 </div>
 
-<h3 id="tarball-install">2.2 tarball 安装（官方 tarball 交付）</h3>
+<h3 id="tarball-install">方式 B：tarball 安装（官方 tarball 交付）</h3>
 <div class="step"><span class="step-num">1</span><strong>拿到发布包（tarball）</strong>
   <p>从 release 下载 <code>dsh-thinking-levels-settings-&lt;version&gt;.tgz</code>（约 20KB），
   或用本目录的 <code>release.sh</code> 一键生成：</p>
@@ -161,11 +161,7 @@ dsh plugin --profile web add ./dsh-thinking-levels-settings-2.0.0.tgz
 <div class="note ok"><strong>完成</strong>：进入 <strong>设置 → 思考级别</strong> 即可看到页面。
   若已有 <code>llm-pi-ai</code> 配置，会按 provider/模型列出可编辑的档位；页面写入将持久化到 <code>~/.dsh/settings.yaml</code>。</div>
 
-<h2 id="install-fallback">2′. 回退安装（无 pnpm / 无 dsh CLI）</h2>
-<p>没有 pnpm（<code>dsh plugin</code> 无法工作）或没有 dsh CLI 时，用包里的 <code>install.sh</code>：
-  它等效手工完成三件事（把包复制进 profile、声明 <code>file:</code> 依赖、在
-  <code>cordis.patch.yml</code> 追加挂载行），自动、幂等：</p>
-
+<h3 id="install-script">方式 C：一键脚本（无 pnpm 环境）</h3>
 <div class="step"><span class="step-num">1</span><strong>解包</strong>
   <pre><code>tar -xzf dsh-thinking-levels-settings-2.0.0.tgz -C /tmp/rel
 cd /tmp/rel/package</code></pre>
@@ -175,16 +171,17 @@ cd /tmp/rel/package</code></pre>
   <pre><code>bash install.sh                    # 默认 profile: web
 DSH_PROFILE=web bash install.sh    # 显式指定
 DSH_HOME=/path bash install.sh     # 覆盖 DSH home</code></pre>
-  <p>脚本会：检测到 <code>dsh</code> + <code>pnpm</code> 都可用时自动走官方路径 A（等效上一节），
-  否则走手工路径 B。重复运行安全（旧版本备份为 <code>.previous</code>，依赖与 patch 行不重复添加）。</p>
+  <p>脚本会：检测到 <code>dsh</code> + <code>pnpm</code> 都可用时自动走官方路径（dsh plugin add，
+  失败自动 <code>-w</code> 重试），否则走手工路径。重复运行安全（旧版本备份为
+  <code>.previous</code>，依赖与 patch 行不重复添加）。</p>
 </div>
 
 <div class="step"><span class="step-num">3</span><strong>重启并刷新</strong>
   <p>重启 dsh，浏览器硬刷新。</p>
 </div>
 
-<p>手工方式本身（如果不想用脚本）与 <code>dsh-client-ui-settings</code> 等官方 client 插件的安装同构：
-  包目录就位 → profile <code>package.json</code> 加 <code>"dsh-thinking-levels-settings": "file:./packages/dsh-thinking-levels-settings"</code>
+<h3 id="install-manual">方式 D：手工（与官方 client 插件同构）</h3>
+<p>包目录就位 → profile <code>package.json</code> 加 <code>"dsh-thinking-levels-settings": "file:./packages/dsh-thinking-levels-settings"</code>
   → <code>cordis.patch.yml</code> 追加：</p>
 <pre><code>- insert:
     - id: ui-thinking-levels-settings
@@ -193,7 +190,7 @@ DSH_HOME=/path bash install.sh     # 覆盖 DSH home</code></pre>
 <h2 id="install-source">3. 在新 DSH 中安装（源码法：可继续开发）</h2>
 <p>
   适用：你拿到的是 <strong>源码包</strong>（含 <code>src/</code>、<code>tsdown.config.ts</code>、<code>tsconfig.json</code>），
-  想在这台机器上<strong>继续开发和重新构建</strong>。前 3 步与“构建产物法”完全相同，第 4 步改为构建：
+  想在这台机器上<strong>继续开发和重新构建</strong>。前两步与“方式 D 手工”相同（包目录就位 + file: 依赖），第 3 步改为在插件目录内构建：
 </p>
 
 <div class="step"><span class="step-num">4′</span><strong>依赖安装与构建</strong>
@@ -251,7 +248,7 @@ npm run watch</code></pre>
 </table>
 
 <h2 id="export">5. 导出给其他 DSH</h2>
-<p>把插件迁移到另一台机器的 DSH 安装，本质就是 <strong>把包目录打包带走，在新机器上重复“构建产物法”的 4 步</strong>。</p>
+<p>把插件迁移到另一台机器的 DSH 安装，本质就是 <strong>把包目录打包带走，在新机器上按“第 2 节方式 A/B/C/D”安装</strong>。</p>
 
 <div class="step"><span class="step-num">0</span><strong>只需要一个命令：release.sh</strong>
   <p>项目里已带 <code>release.sh</code>，一键产出官方形态的 <code>.tgz</code> 发布包

@@ -32,7 +32,7 @@ cordis.patch.yml   # 一行 patch：把本插件挂进 profile 的 cordis.patch.
 
 ## 在新 DSH 中安装
 
-### 方式 1：git 直装（官方 git 托管安装，最简）
+### 方式 A：git 直装（官方 git 托管安装，最简）
 
 ```sh
 dsh plugin --profile web add github:blackteaYES/dsh-thinking-levels-settings
@@ -48,7 +48,7 @@ reconcile 识别 `dsh.bundle` → 自动加入 `dsh.profile.bundles`。无需下
 >   加进 profile 的 `pnpm-workspace.yaml` 的 `allowBuilds`，然后重新执行 `add`（官方文档原文指引）。
 > - 建议锁定 commit：`github:blackteaYES/dsh-thinking-levels-settings#<sha>`
 
-### 方式 2：tarball 安装（官方 tarball 交付，需要 dsh CLI + pnpm）
+### 方式 B：tarball 安装（官方 tarball 交付，需要 dsh CLI + pnpm）
 
 从 [Releases](https://github.com/blackteaYES/dsh-thinking-levels-settings/releases) 下载
 `dsh-thinking-levels-settings-<version>.tgz`，然后：
@@ -58,7 +58,21 @@ dsh plugin --profile web add ./dsh-thinking-levels-settings-2.0.0.tgz
 # 如遇 ERR_PNPM_ADDING_TO_ROOT 加 -w：dsh plugin --profile web add -w ./dsh-thinking-levels-settings-2.0.0.tgz
 ```
 
-### 方式 3：一键脚本（无 pnpm 环境）
+### 方式 C：一键脚本（无 pnpm 环境）
+
+解包后运行：
+
+```sh
+tar -xzf dsh-thinking-levels-settings-2.0.0.tgz -C /tmp/rel
+cd /tmp/rel/package
+bash install.sh            # 默认 profile: web；DSH_PROFILE=xxx 可指定
+```
+
+脚本自动检测：有 `dsh`+`pnpm` 走官方路径（dsh plugin add，失败自动 `-w` 重试），
+否则走手工路径（复制包目录 + `package.json` 注入 `file:` 依赖 + `cordis.patch.yml` 追加挂载行）。
+幂等，可重复运行。手工方式本身如下：
+
+### 方式 D：手工（与官方 client 插件同构）
 
 1. 把插件目录复制到 profile 的 packages 下（目录名必须是 `dsh-thinking-levels-settings`）：
 
