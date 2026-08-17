@@ -28,7 +28,7 @@ echo "==> 构建 (npm run bundle) ..."
 npm run bundle >/dev/null
 
 # 关键产物检查
-for f in lib/client.js lib/index.js lib/invariant.js lib/types/client/index.d.ts install.sh INSTALL.html profile.patch.yml; do
+for f in lib/client.js lib/index.js lib/invariant.js lib/types/client/index.d.ts install.sh INSTALL.html cordis.patch.yml; do
   [ -f "$f" ] || { echo "错误: 缺少 $f，请先检查构建" >&2; exit 1; }
 done
 

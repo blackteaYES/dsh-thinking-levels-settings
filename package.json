@@ -27,7 +27,7 @@
     "lib/client.js",
     "lib/types/**/*.d.ts",
     "INSTALL.md",
-    "profile.patch.yml",
+    "cordis.patch.yml",
     "INSTALL.html",
     "README.md"
   ],
@@ -39,7 +39,7 @@
   },
   "dsh": {
     "bundle": {
-      "patch": "./profile.patch.yml"
+      "patch": "./cordis.patch.yml"
     },
     "client": {
       "platform": "web",

@@ -80,7 +80,7 @@ src/client/index.ts # 浏览器半: settings.section 槽注册 + 设置页组件
 src/invariant.ts    # invariant companion（包所有权注册）
 tsdown.config.ts    # 官方 tsdown.client.ts 形态（clientBundle + node twin）
 lib/                # 构建产物（npm run bundle 生成）
-profile.patch.yml   # 一行 patch 模板（dsh.bundle 引用它）
+cordis.patch.yml   # 一行 patch 模板（dsh.bundle 引用它）
 release.sh          # 一键产出 npm pack 形态发布包 .tgz
 install.sh          # 一键安装脚本（双路径）
 ```

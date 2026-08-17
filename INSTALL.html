@@ -94,7 +94,7 @@
   <code>settings.section</code> 槽位贡献。</p>
 <p>它同时支持 <strong>官方 publish 文档（打包与安装插件）的两种形态</strong>：</p>
 <ul>
-  <li><strong>官方 bundle 形态</strong>：<code>package.json</code> 声明 <code>dsh.bundle</code>（patch: <code>./profile.patch.yml</code>）。
+  <li><strong>官方 bundle 形态</strong>：<code>package.json</code> 声明 <code>dsh.bundle</code>（patch: <code>./cordis.patch.yml</code>）。
     <code>dsh plugin --profile &lt;name&gt; add &lt;tarball&gt;</code> 一步完成安装 —— pnpm 装包 →
     reconcile 识别 <code>dsh.bundle</code> → 自动挂进 <code>dsh.profile.bundles</code> → loader 激活 →
     client-modules 暴露浏览器 bundle。符合 deepseek-harness <code>develop/basic/publish</code> 文档。</li>
@@ -127,7 +127,7 @@ dsh plugin --profile web add ./dsh-thinking-levels-settings-2.0.0.tgz
 # profile 不存在时也能装 —— add 会自动初始化 profile</code></pre>
   <p>这条命令做了什么（官方机制）：pnpm 把 tarball 装进 profile → 依赖解析到声明了
   <code>dsh.bundle</code> 的包 → <code>reconcilePlugins</code> 把它自动加入
-  <code>dsh.profile.bundles</code> 层列表 → 下次启动时 loader 加载 <code>profile.patch.yml</code>
+  <code>dsh.profile.bundles</code> 层列表 → 下次启动时 loader 加载 <code>cordis.patch.yml</code>
   的行（<code>ui-thinking-levels-settings</code>）→ client-modules 扫描并暴露浏览器 bundle。
   <strong>无需手动编辑任何文件</strong>。</p>
 </div>
@@ -243,7 +243,7 @@ OUT_DIR=/path bash release.sh  # 输出到指定目录</code></pre>
   <pre><code>cd ~/.dsh/profiles/web/packages/dsh-thinking-levels-settings
 npm run bundle   # 确保 lib/ 是最新产物（含 invariant.js 与 types/）</code></pre>
   <p><code>release.sh</code> 内部会自动跑这一步。发布包里只含 <code>files</code> 白名单的内容
-  （lib/ 构建产物 + 两个文档 + profile.patch.yml + package.json），<strong>不含 src/ 与构建工具</strong> ——
+  （lib/ 构建产物 + 两个文档 + cordis.patch.yml + package.json），<strong>不含 src/ 与构建工具</strong> ——
   目标机不需要任何构建环境。</p>
 </div>
 
@@ -375,7 +375,7 @@ rm -rf node_modules/dsh-thinking-levels-settings packages/dsh-thinking-levels-se
   <tr><td><code>lib/client.js</code></td><td>构建产物：ModuleLoader 闭包工厂</td><td><code>npm run bundle</code></td></tr>
   <tr><td><code>lib/invariant.js</code></td><td>构建产物：invariant</td><td><code>npm run bundle</code></td></tr>
   <tr><td><code>lib/types/**/*.d.ts</code></td><td>类型声明</td><td><code>npm run types</code>（bundle 内联）</td></tr>
-  <tr><td><code>profile.patch.yml</code></td><td>一行 patch 模板</td><td>源码维护</td></tr>
+  <tr><td><code>cordis.patch.yml</code></td><td>一行 patch 模板</td><td>源码维护</td></tr>
   <tr><td><code>INSTALL.md</code></td><td>文本版安装说明</td><td>源码维护</td></tr>
 </table>
 

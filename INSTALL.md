@@ -27,7 +27,7 @@ lib/invariant.js    # 构建产物：invariant companion
 lib/types/**/*.d.ts # tsc 生成的类型声明
 INSTALL.md          # 本文件（文字版）
 INSTALL.html        # 完整图文教程
-profile.patch.yml   # 一行 patch：把本插件挂进 profile 的 cordis.patch.yml
+cordis.patch.yml   # 一行 patch：把本插件挂进 profile 的 cordis.patch.yml
 ```
 
 ## 在新 DSH 中安装（构建产物法：只需要使用）
@@ -46,7 +46,7 @@ profile.patch.yml   # 一行 patch：把本插件挂进 profile 的 cordis.patch
    "dsh-thinking-levels-settings": "file:./packages/dsh-thinking-levels-settings"
    ```
 
-3. 在 `~/.dsh/profiles/web/cordis.patch.yml` 追加（内容见 `profile.patch.yml`）：
+3. 在 `~/.dsh/profiles/web/cordis.patch.yml` 追加（内容见 `cordis.patch.yml`）：
 
    ```yaml
    - insert:
