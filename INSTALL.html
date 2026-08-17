@@ -114,11 +114,14 @@
 <p>按你的环境选一种方式。方式 A/B 需要 <strong>dsh CLI</strong> 和 <strong>pnpm</strong>
   （<code>dsh plugin</code> 是一个 pnpm 转发器），这是 deepseek-harness 官方 publish 文档推荐的安装方式。</p>
 
-<h3 id="git-install">方式 A：git 直装（官方 git 托管安装，最简）</h3>
+<h3 id="git-install">方式 A：git 直装（官方 git 托管安装，最简；需要 dsh CLI + pnpm）</h3>
 <div class="step"><span class="step-num">1</span><strong>一条命令</strong>
   <pre><code>dsh plugin --profile web add github:blackteaYES/dsh-thinking-levels-settings</code></pre>
-  <p>pnpm 自动：克隆仓库 → 运行 <code>prepare</code> 脚本（<code>npm run bundle</code>，自包含构建，
-  产出 <code>lib/</code>）→ reconcile 识别 <code>dsh.bundle</code> → 自动加入 <code>dsh.profile.bundles</code>。
+  <p><strong>前提：本机需要 <code>dsh</code> CLI 和 <code>pnpm</code></strong>（<code>dsh plugin</code> 是
+  pnpm 转发器，安装时 pnpm 负责克隆仓库、运行构建）。没有 pnpm 请看方式 C。</p>
+  <p>安装流程：pnpm 自动克隆仓库 → 运行 <code>prepare</code> 脚本（<code>npm run bundle</code>，
+  自包含构建，产出 <code>lib/</code>）→ reconcile 识别 <code>dsh.bundle</code> →
+  自动加入 <code>dsh.profile.bundles</code>。
   <strong>无需下载 tarball，无需手动编辑任何文件。</strong></p>
 </div>
 <div class="note warn"><strong>已知兼容性提示</strong>（官方 publish 文档同样预告了这道坎）：

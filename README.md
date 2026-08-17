@@ -16,14 +16,16 @@
 
 ## 📦 安装
 
-### 方式 A：git 直装（官方 publish 文档的 git 托管安装，最简）
+### 方式 A：git 直装（官方 publish 文档的 git 托管安装，最简；需要 dsh CLI + pnpm）
 
 ```sh
 dsh plugin --profile web add github:blackteaYES/dsh-thinking-levels-settings
 ```
 
-pnpm 自动克隆仓库 → 运行 `prepare` 脚本（`npm run bundle` 自包含构建，产出 `lib/`）→
-reconcile 识别 `dsh.bundle` → 自动加入 `dsh.profile.bundles`。**无需下载 tarball，无需手动编辑任何文件。**
+**前提：本机需要 `dsh` CLI 和 `pnpm`**（`dsh plugin` 是 pnpm 转发器；安装时 pnpm 负责克隆仓库、
+运行构建）。安装流程：pnpm 自动克隆仓库 → 运行 `prepare` 脚本（`npm run bundle` 自包含构建，
+产出 `lib/`）→ reconcile 识别 `dsh.bundle` → 自动加入 `dsh.profile.bundles`。
+**无需下载 tarball，无需手动编辑任何文件。** 没有 pnpm 请看方式 C。
 
 > ⚠️ **已知兼容性提示**（官方 publish 文档也预告了）：
 > - **pnpm 8/9 + dsh rc.6**：如遇 `ERR_PNPM_ADDING_TO_ROOT`（workspace-root 保护），加 `-w` 即可：

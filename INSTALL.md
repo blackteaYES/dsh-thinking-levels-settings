@@ -32,7 +32,10 @@ cordis.patch.yml   # 一行 patch：把本插件挂进 profile 的 cordis.patch.
 
 ## 在新 DSH 中安装
 
-### 方式 A：git 直装（官方 git 托管安装，最简）
+### 方式 A：git 直装（官方 git 托管安装，最简；需要 dsh CLI + pnpm）
+
+**前提：本机需要 `dsh` CLI 和 `pnpm`**（`dsh plugin` 是 pnpm 转发器；安装时 pnpm 负责克隆仓库、
+运行构建）。没有 pnpm 请看方式 C。
 
 ```sh
 dsh plugin --profile web add github:blackteaYES/dsh-thinking-levels-settings
