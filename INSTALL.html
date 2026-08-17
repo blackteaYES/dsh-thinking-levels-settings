@@ -143,19 +143,30 @@ pnpm --version</code></pre>
   <p>安装流程：pnpm 自动克隆仓库 → 运行 <code>prepare</code> 脚本（<code>npm run bundle</code>，
   自包含构建，产出 <code>lib/</code>）→ reconcile 识别 <code>dsh.bundle</code> →
   自动加入 <code>dsh.profile.bundles</code>。
-  <strong>无需下载 tarball，无需手动编辑任何文件。</strong></p>
+  <strong>无需下载 tarball；pnpm ≥10 首次安装需要完成下面的一次性构建授权。</strong></p>
 </div>
-<div class="note warn"><strong>已知兼容性提示</strong>（官方 publish 文档同样预告了这道坎）：
-  <ul>
-    <li><strong>pnpm 8/9 + dsh rc.6</strong>：如遇 <code>ERR_PNPM_ADDING_TO_ROOT</code>（workspace-root 保护），
-      加 <code>-w</code> 即可：<code>dsh plugin --profile web add -w github:blackteaYES/dsh-thinking-levels-settings</code>。
-      这是 dsh rc.6 转发 pnpm 时未适配 pnpm 8+ 的 workspace 保护所致，与插件本身无关。</li>
-    <li><strong>pnpm ≥10</strong>：pnpm 会拒绝运行 git 依赖的 <code>prepare</code> 脚本（官方行为），
-      dsh 会提示把 pnpm 打印的包键加进 profile 的 <code>pnpm-workspace.yaml</code> 的
-      <code>allowBuilds</code>，然后重新执行 <code>add</code>（官方文档原文指引）。</li>
-    <li>建议锁定 commit：<code>github:blackteaYES/dsh-thinking-levels-settings#&lt;sha&gt;</code>
-      （官方建议，防止仓库后续推送改变实际运行内容）。</li>
-  </ul>
+<div class="note warn"><strong>pnpm ≥10：首次 git 构建授权</strong>
+  <p>官方依据：<a href="https://deepseek-harness.github.io/deepseek-harness/develop/basic/publish#%E4%BB%8E-github-%E5%AE%89%E8%A3%85-%E6%9E%84%E5%BB%BA%E8%84%9A%E6%9C%AC%E8%BF%99%E9%81%93%E5%9D%8E">从 GitHub 安装：构建脚本这道坎</a>。</p>
+  <p>第一次 <code>add</code> 出现 <code>ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED</code> 是官方预期的安全拦截，
+  不是插件、代理或 <code>dsh.bundle</code> 配置故障。它表示 pnpm 已下载源码并识别到
+  <code>prepare</code>，但尚未获准执行构建代码。</p>
+  <ol>
+    <li>打开当前 profile 的 <code>~/.dsh/profiles/web/pnpm-workspace.yaml</code>。</li>
+    <li>将错误中 <code>allowBuilds:</code> 下方打印的<strong>完整包键原样复制</strong>到文件顶层。
+      pnpm v11 的键通常包含包名、codeload URL 和 commit，不能缩写成包名。如果已有
+      <code>allowBuilds</code>，合并条目，不要创建第二个同名 YAML 键。</li>
+  </ol>
+  <pre><code>allowBuilds:
+  "&lt;粘贴 pnpm 错误中打印的完整包键&gt;": true</code></pre>
+  <p>然后锁定并重试错误中同一个 commit：</p>
+  <pre><code>dsh plugin --profile web add "github:blackteaYES/dsh-thinking-levels-settings#&lt;sha&gt;"</code></pre>
+  <p>这项授权允许插件源码在 agent 沙箱之外于本机执行。只对可信源码授权并锁定 commit；
+  main 更新后 pnpm 可能要求对新的完整包键重新授权。不想授权时使用方式 B 的预构建 tarball，
+  它不需要 git <code>prepare</code> 构建权限。</p>
+</div>
+<div class="note warn"><strong>pnpm 8/9 + dsh rc.6</strong>：如遇
+  <code>ERR_PNPM_ADDING_TO_ROOT</code>（workspace-root 保护），加 <code>-w</code>：
+  <code>dsh plugin --profile web add -w github:blackteaYES/dsh-thinking-levels-settings</code>。
 </div>
 
 <h3 id="tarball-install">方式 B：tarball 安装（官方 tarball 交付）</h3>
@@ -386,6 +397,13 @@ rm -rf node_modules/dsh-thinking-levels-settings packages/dsh-thinking-levels-se
     有条目但页面没有 = 浏览器缓存了旧 bundle。</li>
   <li>确认 <code>cordis.patch.yml</code> 是顶层 YAML 数组（<code>- insert:</code> 顶格写）。</li>
 </ul>
+
+<h3>git 安装报 ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED</h3>
+<p>这是 pnpm ≥10 对 git 依赖 <code>prepare</code> 脚本的首次安全授权，不是下载、代理或插件 manifest
+  故障。按<a href="#git-install">方式 A 的“首次 git 构建授权”</a>操作：把 pnpm 打印的完整包键
+  原样加入当前 profile 的 <code>pnpm-workspace.yaml</code> 顶层 <code>allowBuilds</code>，然后锁定同一个
+  commit 重新执行 <code>add</code>。官方依据：
+  <a href="https://deepseek-harness.github.io/deepseek-harness/develop/basic/publish#%E4%BB%8E-github-%E5%AE%89%E8%A3%85-%E6%9E%84%E5%BB%BA%E8%84%9A%E6%9C%AC%E8%BF%99%E9%81%93%E5%9D%8E">从 GitHub 安装：构建脚本这道坎</a>。</p>
 
 <h3>页面报“llm-pi-ai 设置尚未加载”</h3>
 <p>说明当前 profile 没有注册 <code>llm-pi-ai</code> 命名空间（未配置 <code>dsh-llm-pi-ai</code> 提供方）。

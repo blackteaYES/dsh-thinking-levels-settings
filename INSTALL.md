@@ -74,14 +74,44 @@ dsh plugin --profile web add github:blackteaYES/dsh-thinking-levels-settings
 ```
 
 pnpm 自动：克隆仓库 → 运行 `prepare` 脚本（`npm run bundle`，自包含构建，产出 `lib/`）→
-reconcile 识别 `dsh.bundle` → 自动加入 `dsh.profile.bundles`。无需下载 tarball、无需手动编辑任何文件。
+reconcile 识别 `dsh.bundle` → 自动加入 `dsh.profile.bundles`。无需下载 tarball；pnpm ≥10 首次安装
+需要完成下面的一次性构建授权。
 
-> ⚠️ 已知兼容性提示（官方 publish 文档同样预告了这道坎）：
-> - **pnpm 8/9 + dsh rc.6**：如遇 `ERR_PNPM_ADDING_TO_ROOT`（workspace-root 保护），加 `-w` 即可：
->   `dsh plugin --profile web add -w github:blackteaYES/dsh-thinking-levels-settings`
-> - **pnpm ≥10**：pnpm 拒绝运行 git 依赖的 `prepare` 脚本（官方行为），dsh 会提示把 pnpm 打印的包键
->   加进 profile 的 `pnpm-workspace.yaml` 的 `allowBuilds`，然后重新执行 `add`（官方文档原文指引）。
-> - 建议锁定 commit：`github:blackteaYES/dsh-thinking-levels-settings#<sha>`
+#### pnpm ≥10：首次 git 构建授权
+
+官方依据：[从 GitHub 安装：构建脚本这道坎](https://deepseek-harness.github.io/deepseek-harness/develop/basic/publish#%E4%BB%8E-github-%E5%AE%89%E8%A3%85-%E6%9E%84%E5%BB%BA%E8%84%9A%E6%9C%AC%E8%BF%99%E9%81%93%E5%9D%8E)
+
+第一次 `add` 出现 `ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED` 是官方预期的安全拦截，不是插件、代理或
+`dsh.bundle` 配置故障。它表示 pnpm 已下载源码并识别到 `prepare`，但尚未获准执行构建代码。
+
+1. 打开当前 profile 的 `pnpm-workspace.yaml`：
+
+   ```sh
+   nano ~/.dsh/profiles/web/pnpm-workspace.yaml
+   ```
+
+2. 将错误中 `allowBuilds:` 下方打印的**完整包键原样复制**到该文件顶层。pnpm v11 的键通常包含
+   包名、codeload URL 和 commit，不能缩写成包名：
+
+   ```yaml
+   allowBuilds:
+     "<粘贴 pnpm 错误中打印的完整包键>": true
+   ```
+
+   如果文件已经有 `allowBuilds`，把新条目合并到现有对象下，不要创建第二个同名 YAML 键。
+
+3. 锁定并重新安装错误中对应的同一个 commit：
+
+   ```sh
+   dsh plugin --profile web add "github:blackteaYES/dsh-thinking-levels-settings#<sha>"
+   ```
+
+这项授权允许插件源码在 agent 沙箱之外于本机执行。只对可信源码授权并锁定 commit；如果 main
+更新为新的 commit，pnpm 可能要求对新的完整包键重新授权。不想授权时使用方式 B 的预构建 tarball，
+它已经包含 `lib/`，不需要 git `prepare` 构建权限。
+
+> 其他兼容性：**pnpm 8/9 + dsh rc.6** 如遇 `ERR_PNPM_ADDING_TO_ROOT`，加 `-w`：
+> `dsh plugin --profile web add -w github:blackteaYES/dsh-thinking-levels-settings`。
 
 ### 方式 B：tarball 安装（官方 tarball 交付，需要 dsh CLI + pnpm）
 
