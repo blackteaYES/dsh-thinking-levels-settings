@@ -15,6 +15,11 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# npm 缓存可写覆盖（如 ~/.npm 为只读挂载的环境）
+CACHE_DIR="${NPM_CACHE_DIR:-$HOME/.npm-cache}"
+mkdir -p "$CACHE_DIR"
+export npm_config_cache="$CACHE_DIR"
+
 VERSION=$(node -p "require('./package.json').version")
 OUT_DIR="${OUT_DIR:-.}"
 OUT="$OUT_DIR/dsh-thinking-levels-settings-$VERSION.tgz"
