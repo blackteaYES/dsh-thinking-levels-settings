@@ -32,6 +32,38 @@ cordis.patch.yml   # 一行 patch：把本插件挂进 profile 的 cordis.patch.
 
 ## 在新 DSH 中安装
 
+### 先安装 pnpm（方式 A / B 的前置要求）
+
+先检查：
+
+```sh
+pnpm --version
+```
+
+没有 pnpm 时，优先使用 Node.js 自带的 Corepack：
+
+```sh
+corepack enable
+corepack prepare pnpm@latest --activate
+pnpm --version
+```
+
+如果系统没有 `corepack`，通过 npm 安装：
+
+```sh
+npm install --global pnpm
+pnpm --version
+```
+
+最后确认 `dsh` 所在的同一环境能从 `PATH` 找到 pnpm：
+
+```sh
+command -v pnpm
+```
+
+> WSL 用户必须在 WSL 发行版内部执行这些命令；只在 Windows 主机安装 pnpm，不保证 WSL 中的
+> `dsh plugin` 能找到它。无权限全局安装时优先使用 Corepack，或选择方式 C。
+
 ### 方式 A：git 直装（官方 git 托管安装，最简；需要 dsh CLI + pnpm）
 
 **前提：本机需要 `dsh` CLI 和 `pnpm`**（`dsh plugin` 是 pnpm 转发器；安装时 pnpm 负责克隆仓库、

@@ -114,6 +114,27 @@
 <p>按你的环境选一种方式。方式 A/B 需要 <strong>dsh CLI</strong> 和 <strong>pnpm</strong>
   （<code>dsh plugin</code> 是一个 pnpm 转发器），这是 deepseek-harness 官方 publish 文档推荐的安装方式。</p>
 
+<h3 id="install-pnpm">先安装 pnpm（方式 A / B 的前置要求）</h3>
+<div class="step"><span class="step-num">1</span><strong>检查 pnpm</strong>
+  <pre><code>pnpm --version</code></pre>
+</div>
+<div class="step"><span class="step-num">2</span><strong>没有 pnpm 时安装</strong>
+  <p>优先使用 Node.js 自带的 Corepack：</p>
+  <pre><code>corepack enable
+corepack prepare pnpm@latest --activate
+pnpm --version</code></pre>
+  <p>如果系统没有 <code>corepack</code>，通过 npm 安装：</p>
+  <pre><code>npm install --global pnpm
+pnpm --version</code></pre>
+</div>
+<div class="step"><span class="step-num">3</span><strong>确认 PATH</strong>
+  <pre><code>command -v pnpm</code></pre>
+  <p>该命令必须能输出 pnpm 路径，<code>dsh plugin</code> 才能调用它。</p>
+</div>
+<div class="note warn"><strong>WSL 用户</strong>：必须在 WSL 发行版内部执行这些命令；
+  只在 Windows 主机安装 pnpm，不保证 WSL 中的 <code>dsh plugin</code> 能找到它。
+  无权限全局安装时优先使用 Corepack，或选择方式 C。</div>
+
 <h3 id="git-install">方式 A：git 直装（官方 git 托管安装，最简；需要 dsh CLI + pnpm）</h3>
 <div class="step"><span class="step-num">1</span><strong>一条命令</strong>
   <pre><code>dsh plugin --profile web add github:blackteaYES/dsh-thinking-levels-settings</code></pre>

@@ -29,7 +29,8 @@
     "INSTALL.md",
     "cordis.patch.yml",
     "INSTALL.html",
-    "README.md"
+    "README.md",
+    "install.sh"
   ],
   "scripts": {
     "types": "tsc --declaration --emitDeclarationOnly --outDir lib/types --noEmit false --rootDir src --project tsconfig.json",

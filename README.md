@@ -16,6 +16,38 @@
 
 ## 📦 安装
 
+### 先安装 pnpm（方式 A / B 的前置要求）
+
+先检查是否已有 pnpm：
+
+```sh
+pnpm --version
+```
+
+没有 pnpm 时，优先使用 Node.js 自带的 Corepack：
+
+```sh
+corepack enable
+corepack prepare pnpm@latest --activate
+pnpm --version
+```
+
+如果系统没有 `corepack`，可通过 npm 安装：
+
+```sh
+npm install --global pnpm
+pnpm --version
+```
+
+确认 `dsh` 能在同一环境的 `PATH` 中找到 pnpm：
+
+```sh
+command -v pnpm
+```
+
+> WSL 用户必须在 **WSL 发行版内部**执行上述命令；只在 Windows 主机安装 pnpm，不保证 WSL 中的
+> `dsh plugin` 能找到它。若无权限全局安装，使用 Corepack，或直接选择方式 C。
+
 ### 方式 A：git 直装（官方 publish 文档的 git 托管安装，最简；需要 dsh CLI + pnpm）
 
 ```sh
