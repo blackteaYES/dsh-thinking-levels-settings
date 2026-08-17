@@ -1,0 +1,4 @@
+# Add this entry to a DSH Web profile's cordis.patch.yml.
+- insert:
+    - id: ui-thinking-levels-settings
+      name: dsh-thinking-levels-settings
