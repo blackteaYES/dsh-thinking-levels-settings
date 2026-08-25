@@ -50,58 +50,43 @@ command -v pnpm
 > WSL 用户必须在 **WSL 发行版内部**执行上述命令；只在 Windows 主机安装 pnpm，不保证 WSL 中的
 > `dsh plugin` 能找到它。若无权限全局安装，使用 Corepack，或直接选择方式 C。
 
-### 方式 A：git 直装（官方 publish 文档的 git 托管安装，最简；需要 dsh CLI + pnpm）
+### 方式 A：#master 直装（推荐，最简；需要 dsh CLI + pnpm）
 
 ```sh
-dsh plugin --profile web add github:blackteaYES/dsh-thinking-levels-settings
+dsh plugin --profile web add github:blackteaYES/dsh-thinking-levels-settings#master
 ```
 
-**前提：本机需要 `dsh` CLI 和 `pnpm`**（`dsh plugin` 是 pnpm 转发器；安装时 pnpm 负责克隆仓库、
-运行构建）。安装流程：pnpm 自动克隆仓库 → 运行 `prepare` 脚本（`npm run bundle` 自包含构建，
-产出 `lib/`）→ reconcile 识别 `dsh.bundle` → 自动加入 `dsh.profile.bundles`。
-**无需下载 tarball；pnpm ≥10 首次安装需要完成下面的一次性构建授权。** 没有 pnpm 请看方式 C。
+`master` 分支由 CI（`.github/workflows/ci.yml`）自动维护为**预构建产物分支**——只含 `lib/`
+与包元数据，不含源码、没有 `prepare` 脚本，安装即用：
 
-> ⚠️ **pnpm 兼容性与构建授权**
->
-> 官方依据：[从 GitHub 安装：构建脚本这道坎](https://deepseek-harness.github.io/deepseek-harness/develop/basic/publish#%E4%BB%8E-github-%E5%AE%89%E8%A3%85-%E6%9E%84%E5%BB%BA%E8%84%9A%E6%9C%AC%E8%BF%99%E9%81%93%E5%9D%8E)
->
-> - **pnpm 8/9 + dsh rc.6**：如遇 `ERR_PNPM_ADDING_TO_ROOT`（workspace-root 保护），加 `-w`：
->   `dsh plugin --profile web add -w github:blackteaYES/dsh-thinking-levels-settings`
-> - **pnpm ≥10**：第一次 `add` 出现 `ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED` 是官方预期的安全拦截，
->   不是插件或代理故障。pnpm 已下载源码，但在用户授权前不会运行 git 依赖的 `prepare`。
-> - 将错误中 `allowBuilds:` 下方打印的**完整包键原样复制**到
->   `~/.dsh/profiles/web/pnpm-workspace.yaml`。pnpm v11 的键通常包含包名、codeload URL 和 commit，
->   不能擅自缩写成包名；如果文件已有 `allowBuilds`，合并条目，不要创建第二个同名 YAML 键：
->
->   ```yaml
->   allowBuilds:
->     "<粘贴 pnpm 错误中打印的完整包键>": true
->   ```
->
-> - 然后锁定并重试错误中同一个 commit：
->   `dsh plugin --profile web add "github:blackteaYES/dsh-thinking-levels-settings#<sha>"`。
-> - 这项授权允许插件源码在 agent 沙箱之外于本机执行。只对可信源码授权并锁定 commit；
->   不想授权时使用方式 B 的预构建 tarball，它不需要 git `prepare` 构建权限。
+- **无需本地构建**，pnpm ≥10 也**不再需要 `allowBuilds` 构建授权**
+- 合并到 main 后自动更新；之后 `dsh plugin --profile web update` 即升级到最新构建
+- 如遇 `ERR_PNPM_ADDING_TO_ROOT`，加 `-w`：
+  `dsh plugin --profile web add -w github:blackteaYES/dsh-thinking-levels-settings#master`
 
-### 方式 B：tarball 安装（官方 tarball 交付，需要 dsh CLI + pnpm）
+> 想锁定确定版本、避免「最新即变」？用方式 B 的 Release tarball（不可变的版本锚点）。
+
+### 方式 B：Release tarball 安装（稳定通道，版本可锁定；需要 dsh CLI + pnpm）
 
 从 **[Releases](https://github.com/blackteaYES/dsh-thinking-levels-settings/releases)** 下载
-`dsh-thinking-levels-settings-<version>.tgz`，然后：
+`dsh-thinking-levels-settings-<version>.tgz`，或直接用直链一步安装：
 
 ```sh
-dsh plugin --profile web add ./dsh-thinking-levels-settings-2.0.0.tgz
+dsh plugin --profile web add https://github.com/blackteaYES/dsh-thinking-levels-settings/releases/download/v2.1.0/dsh-thinking-levels-settings-2.1.0.tgz
 ```
 
 - 自动加入 `dsh.profile.bundles`（reconcile 识别 `dsh.bundle`）
-- **无需手动编辑任何文件**
+- **无需手动编辑任何文件，无需构建授权**
 - 完成后重启 dsh，浏览器硬刷新（Ctrl+Shift+R）
+
+tarball 由 CI 在打 `v*` tag 时自动构建并附加到 Release（`.github/workflows/release.yml`）。
 
 ### 方式 C：一键脚本（无 pnpm 环境）
 
 解包后运行：
 
 ```sh
-tar -xzf dsh-thinking-levels-settings-2.0.0.tgz -C /tmp/rel
+tar -xzf dsh-thinking-levels-settings-2.1.0.tgz -C /tmp/rel
 cd /tmp/rel/package
 bash install.sh            # 默认 profile: web；DSH_PROFILE=xxx 可指定
 ```
@@ -125,19 +110,50 @@ bash install.sh            # 默认 profile: web；DSH_PROFILE=xxx 可指定
 
 > 完整安装/导出/验证/卸载教程见 [INSTALL.html](INSTALL.html)（图文）与 [INSTALL.md](INSTALL.md)（文字版）。
 
+### 从 ≤2.0 旧版升级：先清理被污染的 profile
+
+**2.0 及更早版本把 `@deepseek-ai/*` 声明为普通 dependencies**，pnpm 安装时会往 profile 里物化
+一套旧版本副本，遮蔽 dsh 本体提供的模块，导致 **所有对话报
+`history unavailable for session "...": TypeError: Cannot read properties of undefined (reading 'parse')`**
+等新旧版本混跑故障。升级到 2.1+ 前请先清理一次：
+
+```sh
+cd ~/.dsh/profiles/web
+dsh plugin --profile web remove dsh-thinking-levels-settings   # 或 pnpm remove dsh-thinking-levels-settings
+```
+
+然后核对三处残留：
+
+1. `~/.dsh/profiles/web/package.json`：`dependencies` 与 `dsh.profile.bundles` 数组里都不应再有
+   `dsh-thinking-levels-settings`（`remove` 不会动 bundles 字段，需手工删）
+2. `ls ~/.dsh/profiles/web/node_modules/@deepseek-ai` —— **应不存在或为空**。若还有真实目录
+   （非符号链接），它们是旧插件拖入的副本，整棵删掉：
+   `rm -rf ~/.dsh/profiles/web/node_modules/@deepseek-ai`
+3. `ls ~/.dsh/profiles/web/node_modules | grep -E '^(zod|immer|zustand|fflate)$'`
+   同为旧版拖入的残留则一并删除（宿主自己的依赖在上一级 `~/.dsh/profiles/node_modules`，
+   是指向安装的符号链接，不受影响）
+
+清理完成后重启 dsh web，再按方式 A / B 安装 2.1+。2.1 起宿主包改为 optional peerDependencies，
+任何环境都不会再物化副本。
+
 ## 🧩 前提
 
-- DSH（DeepSeek Harness）rc.6 及同架构版本
+- DSH（DeepSeek Harness）0.1.x 同架构版本及后续兼容版本（平台模块由宿主 module table 提供）
 - profile 里配置了自定义 `llm-pi-ai` 提供方（否则页面提示「尚未加载」）
 - 方式 A / 方式 B 需要本机有 **pnpm**（`dsh plugin` 是 pnpm 转发器）
 
 ## 🚀 开发
 
 ```sh
-npm install        # 安装 tsdown / typescript / @deepseek-ai client 依赖
+npm install        # 安装 tsdown / typescript / @deepseek-ai client 依赖（devDependencies）
 npm run bundle     # 构建: tsdown 产出 lib/ + tsc 产出 lib/types
 npm run watch      # 开发模式: 自动重建
 ```
+
+> 开发者路径：想直接从源码安装到 profile（git 直装 `main`，pnpm 会在本机跑 `prepare` 构建），
+> 需按 pnpm ≥10 提示在 `~/.dsh/profiles/web/pnpm-workspace.yaml` 配置 `allowBuilds` 授权。
+> 官方依据：[从 GitHub 安装：构建脚本这道坎](https://deepseek-harness.github.io/deepseek-harness/develop/basic/publish#%E4%BB%8E-github-%E5%AE%89%E8%A3%85-%E6%9E%84%E5%BB%BA%E8%84%9A%E6%9C%AC%E8%BF%99%E9%81%93%E5%9D%8E)。
+> 普通用户请使用方式 A / B 的预构建产物，无需任何授权。
 
 结构：
 
@@ -154,11 +170,17 @@ install.sh          # 一键安装脚本（双路径）
 
 ## 📤 发布新版本
 
+推送 `v<version>` tag 即可，CI 自动构建并把 `.tgz` 附到 GitHub Release（`release.yml`）：
+
 ```sh
-bash release.sh     # 产出 dsh-thinking-levels-settings-<version>.tgz
+git tag v2.1.0 && git push origin v2.1.0
 ```
 
-然后把 `.tgz` 作为 GitHub Release 资产上传（tag 建议 `v<version>`）。
+本地出包仍可用 `bash release.sh`。
+
+## 🙌 致谢
+
+- [@Dave-12138](https://github.com/Dave-12138) —— CI 自动构建发布方案与宿主包 peer 化（#1）
 
 ## 📄 License
 
