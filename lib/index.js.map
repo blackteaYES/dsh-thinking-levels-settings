@@ -1,0 +1,1 @@
+{"version":3,"file":"index.js","names":[],"sources":["../src/index.ts"],"sourcesContent":["/**\n * Host loader entry for the browser implementation exported from `./client`.\n */\n\n/** Host plugin body — no host-side behavior: this feature is a pure Web Client settings page. */\nexport function apply(): void {\n  /* no-op */\n}"],"mappings":";;;;;AAKA,SAAgB,QAAc,CAE9B"}
