@@ -231,7 +231,8 @@ tar -czf dsh-thinking-levels-settings.tar.gz dsh-thinking-levels-settings
 # 3) 在新机器解包到 ~/.dsh/profiles/web/packages/ 下，然后重复“构建产物法”的第 2-4 步
 ```
 
-完整的一键安装脚本（`install-plugin.sh`）见 `INSTALL.html` 第 5 节。
+发布包（Release tarball）自带一键安装脚本 `install.sh`：解包后在 `package/` 目录内运行
+`bash install.sh`，自动检测环境选择官方路径或手工路径。
 
 ## 验证安装
 

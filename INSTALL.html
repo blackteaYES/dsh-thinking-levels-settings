@@ -67,7 +67,7 @@
 <div class="wrap">
 
 <h1>dsh-thinking-levels-settings 安装与导出教程</h1>
-<p class="sub">DSH Web 自定义插件 · 官方 client-plugin 形态（v2.0.0）· 适用于任何 DSH 安装（rc.6 及同架构版本）</p>
+<p class="sub">DSH Web 自定义插件 · 官方 client-plugin 形态（v2.1.0）· 平台模块由宿主 module table 提供，随 DSH 版本兼容</p>
 
 <div class="toc">
   <strong>目录</strong>
@@ -335,7 +335,7 @@ npm run bundle   # 确保 lib/ 是最新产物（含 invariant.js 与 types/）<
 <div class="step"><span class="step-num">3</span><strong>（只想手工装）目标机解包 + 挂载行</strong>
   <pre><code>mkdir -p ~/.dsh/profiles/web/packages
 cd ~/.dsh/profiles/web/packages
-tar -xzf dsh-thinking-levels-settings-2.0.0.tgz   # 解出 package/ 目录
+tar -xzf dsh-thinking-levels-settings-2.1.0.tgz   # 解出 package/ 目录
 mv package dsh-thinking-levels-settings
 ls dsh-thinking-levels-settings/lib/   # 确认 client.js / index.js / invariant.js / types</code></pre>
 </div>
@@ -352,40 +352,11 @@ ls dsh-thinking-levels-settings/lib/   # 确认 client.js / index.js / invariant
   </ol>
 </div>
 
-<div class="note ok"><strong>完整示例（一条命令到位的脚本版）</strong>：把下面存成 <code>install-plugin.sh</code>，在新机器上以
-  <code>bash install-plugin.sh /path/to/dsh-thinking-levels-settings-2.0.0.tgz</code> 运行：<br><br>
-  <pre><code>#!/usr/bin/env bash
-set -euo pipefail
-ARCHIVE="${1:?用法: install-plugin.sh &lt;插件 tarball 路径&gt;}"
-PROFILE="${DSH_PROFILE:-web}"
-TMP=$(mktemp -d)
-tar -xzf "$ARCHIVE" -C "$TMP"
-PKG="$TMP/package"
-PACKAGES="$HOME/.dsh/profiles/$PROFILE/packages"
-mkdir -p "$PACKAGES"
-cp -R "$PKG" "$PACKAGES/dsh-thinking-levels-settings"
-rm -rf "$PACKAGES/dsh-thinking-levels-settings/.git"
-
-# 1) 依赖声明（幂等：已存在则跳过）
-if ! grep -q 'dsh-thinking-levels-settings' "$HOME/.dsh/profiles/$PROFILE/package.json"; then
-  node -e '
-    const fs=require("fs"), p=process.argv[1];
-    const j=JSON.parse(fs.readFileSync(p,"utf8"));
-    (j.dependencies ??= {})["dsh-thinking-levels-settings"]="file:./packages/dsh-thinking-levels-settings";
-    fs.writeFileSync(p, JSON.stringify(j, null, 2)+"\n");
-  ' "$HOME/.dsh/profiles/$PROFILE/package.json"
-fi
-
-# 2) patch 行（幂等）
-PATCH="$HOME/.dsh/profiles/$PROFILE/cordis.patch.yml"
-if ! grep -q 'name: dsh-thinking-levels-settings' "$PATCH" 2>/dev/null; then
-  printf '\n- insert:\n    - id: ui-thinking-levels-settings\n      name: dsh-thinking-levels-settings\n' >> "$PATCH"
-fi
-
-# 3) 建立链接 + 提示重启
-cd "$HOME/.dsh/profiles/$PROFILE"
-npm install --package-lock=false --ignore-scripts
-echo "完成：请重启 dsh $PROFILE 并硬刷新浏览器（设置 -> 思考级别）"</code></pre></div>
+<div class="note ok"><strong>一键脚本已内置</strong>：发布包（tarball）自带 <code>install.sh</code>，解包后以
+  <code>bash install.sh</code> 运行即可——自动检测环境：有 dsh + pnpm 走官方
+  <code>dsh plugin add</code> 路径（失败自动 <code>-w</code> 重试），否则走手工路径（复制包目录 +
+  <code>package.json</code> 注入 <code>file:</code> 依赖 + <code>cordis.patch.yml</code> 追加挂载行）。
+  幂等，可重复运行。也可显式指定：<code>DSH_PROFILE=web bash install.sh</code>。</div>
 
 <h2 id="update">6. 覆盖更新已安装的插件</h2>
 <p>新版本到手后，<strong>保持 profile 的依赖声明和 patch 行不变</strong>，只更新包目录内容：</p>

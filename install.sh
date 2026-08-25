@@ -68,7 +68,14 @@ if [ -n "$DSH_BIN" ] && [ "$HAS_PNPM" = "1" ] && [ "${SKIP_PNPM:-0}" != "1" ]; t
   echo "==> 路径 A：官方 dsh plugin add（dsh=$DSH_BIN, pnpm 可用）"
   if [ ! -f "$TARBALL" ]; then
     echo "==> 打包 tarball ($TARBALL) ..."
-    (cd "$PKG_DIR" && npm pack --silent >/dev/null 2>&1 || npm pack >/dev/null)
+    # 不用 npm pack：它会触发 prepare（=完整构建），发布包消费者没有
+    # node_modules 必失败（--ignore-scripts 在部分 npm 版本也不生效）。
+    # 包内 lib/ 已是预构建产物，直接按 files 白名单等价内容打 tar。
+    STAGE=$(mktemp -d)
+    trap 'rm -rf "$STAGE"' EXIT
+    cp -R "$PKG_DIR" "$STAGE/package"
+    rm -rf "$STAGE/package/node_modules" "$STAGE/package/.git"
+    (cd "$STAGE" && tar -czf "$TARBALL" package)
     [ -f "$TARBALL" ] || { echo "错误: tarball 生成失败" >&2; exit 1; }
   fi
   echo "==> dsh plugin --profile $PROFILE add $TARBALL ..."
