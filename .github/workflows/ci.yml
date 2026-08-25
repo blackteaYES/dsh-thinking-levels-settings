@@ -35,7 +35,9 @@ jobs:
     # 门禁全绿后把构建产物覆盖到 master 分支；用户端以
     # github:<owner>/<repo>#master 安装时不再需要本地放行构建。
     # master 上只保留可安装内容（lib/ 与包元数据），不带源码与测试。
-    if: github.event_name == 'push'
+    # 仅 main 推送触发：dev 与 PR 绝不产出安装分支，避免开发中代码
+    # 经 push dev 直接覆盖所有用户的 #master 安装目标。
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: gates
     runs-on: ubuntu-latest
     permissions:
