@@ -1,9 +1,17 @@
 /**
  * Per-model thinking-level settings page for the `llm-pi-ai` settings namespace.
- * Registers one `settings.section` slot contribution (declared by
- * `@deepseek-ai/dsh-client-ui-settings`) through the official composition path.
- * Data flows through the authenticated Settings wire; changes persist to
+ * Registers one `settings.section` slot contribution (declared by the DSH
+ * settings UI) through the official composition path. Data flows through a
+ * runtime-probed settings channel (see `./settings-wire`) and persists to
  * `~/.dsh/settings.yaml` under `llm-pi-ai.providers.*.models[*].reasoningEfforts`.
+ *
+ * Version policy: this file imports nothing from `@deepseek-ai/*` — not even
+ * types. Every platform fact is either probed at runtime (settings wire,
+ * pushed refresh events) or has a documented fallback (level vocabulary is
+ * discovered from the settings schema, default list otherwise). A DSH upgrade
+ * that renames a package, service, envelope, or argument shape therefore
+ * cannot take this page down; the previous breakage was exactly a pinned
+ * `IApiClient`/`ctx.connection.api` contract.
  *
  * Format notes (packages/client/AGENTS.md): exports only what cordis loading
  * needs (`apply`/`inject`); the render surface is assembled with plain
@@ -11,27 +19,27 @@
  * (window.__ModuleLoader__.load closure factory + module-table externals).
  */
 import * as React from "react"
-import type { IApiClient, SettingsNamespaceView } from "@deepseek-ai/dsh-api-remotes/client"
-import type { RpcResponse } from "@deepseek-ai/dsh-host-apiproxy/api"
+import { resolveSettingsWire, levelVocabularyFromSchema, SettingsCallError } from "./settings-wire"
+import type { RawNamespace, RawSettingsDocument, SettingsWire } from "./settings-wire"
 
-/** Settings wire face consumed by the section: the shared API client's settings domain. */
-type SettingsApi = IApiClient
-
-/** Settings namespace owned by the custom-provider settings domain. */
+/** Settings namespace owning the custom providers. A rename is survived by the {@link pickNamespace} shape scan. */
 const NAMESPACE = "llm-pi-ai"
 
-/** Canonical thinking-effort levels, in display order (wire keys match the Composer selector). */
-const LEVELS: ReadonlyArray<readonly [string, string]> = [
-  ["off", "Off"],
-  ["minimal", "Minimal"],
-  ["low", "Low"],
-  ["medium", "Medium"],
-  ["high", "High"],
-  ["xhigh", "XHigh"],
-  ["max", "Max"],
-] as const
+/** Level vocabulary used when the settings schema does not carry a discoverable one. */
+const DEFAULT_LEVELS: readonly string[] = ["off", "minimal", "low", "medium", "high", "xhigh", "max"]
 
-/** One-click presets for the common vendor vocabularies. */
+/** Display spellings for the known levels; anything future-facing falls back to a capitalized id. */
+const KNOWN_LABELS: Readonly<Record<string, string>> = {
+  off: "Off",
+  minimal: "Minimal",
+  low: "Low",
+  medium: "Medium",
+  high: "High",
+  xhigh: "XHigh",
+  max: "Max",
+}
+
+/** One-click presets for the common vendor vocabularies; levels absent from the active vocabulary are dropped. */
 const PRESETS: ReadonlyArray<readonly [string, Record<string, string>]> = [
   ["DeepSeek", { off: "none", high: "high", max: "max" }],
   ["OpenAI", { off: "none", low: "low", medium: "medium", high: "high" }],
@@ -54,30 +62,28 @@ function cloneJson(value: unknown): unknown {
   return result
 }
 
-interface DescribeResponseValue {
-  writable: boolean
-  hasDocument: boolean
-  namespaces: SettingsNamespaceView[]
+function levelLabel(id: string): string {
+  return KNOWN_LABELS[id] ?? (id.charAt(0).toUpperCase() + id.slice(1))
 }
 
-/** Narrow the describe() response to the llm-pi-ai namespace view. */
-function namespaceView(response: RpcResponse<DescribeResponseValue>): (SettingsNamespaceView & { writable: boolean }) | undefined {
-  if (!response || response.result.ok !== true) {
-    throw new Error(response.result.ok === false ? response.result.error.message : "读取设置失败")
+/** Pick the namespace to edit: exact match first, else one whose schema carries a level vocabulary and a providers section. */
+function pickNamespace(document: RawSettingsDocument): string | undefined {
+  const namespaces = Array.isArray(document.namespaces) ? (document.namespaces as RawNamespace[]) : []
+  if (namespaces.some((item) => isRecord(item) && item.ns === NAMESPACE)) return NAMESPACE
+  for (const item of namespaces) {
+    if (!isRecord(item) || typeof item.ns !== "string") continue
+    const bag = isRecord(item.user) ? item.user : isRecord(item.value) ? item.value : undefined
+    if (bag !== undefined && isRecord(bag.providers) && levelVocabularyFromSchema(document, item.ns) !== undefined) return item.ns
   }
-  const { namespaces, writable } = response.result.value
-  if (!Array.isArray(namespaces)) throw new Error("设置响应缺少命名空间列表")
-  const view = namespaces.find((item) => item && item.ns === NAMESPACE)
-  if (!view) return undefined
-  return Object.assign({}, view, { writable: writable === true })
+  return undefined
 }
 
-/** Normalize a model's reasoningEfforts into editable wire values. */
-function effortsOf(model: Rec): unknown {
+/** Normalize a model's reasoningEfforts into editable wire values, restricted to the active vocabulary. */
+function effortsOf(model: Rec, levels: readonly string[]): unknown {
   if (model.reasoningEfforts === false) return false
   if (!isRecord(model.reasoningEfforts)) return null
   const efforts: Rec = {}
-  for (const [id] of LEVELS) {
+  for (const id of levels) {
     if (!Object.prototype.hasOwnProperty.call(model.reasoningEfforts, id)) continue
     const wire = model.reasoningEfforts[id]
     if (wire === null || typeof wire === "string") efforts[id] = wire
@@ -85,12 +91,12 @@ function effortsOf(model: Rec): unknown {
   return Object.keys(efforts).length > 0 ? efforts : null
 }
 
-function modelView(model: unknown): { id: string; name: string; reasoningEfforts: unknown } | null {
+function modelView(model: unknown, levels: readonly string[]): { id: string; name: string; reasoningEfforts: unknown } | null {
   if (!isRecord(model) || typeof model.id !== "string" || model.id.length === 0) return null
   return {
     id: model.id,
     name: typeof model.name === "string" && model.name.length > 0 ? model.name : model.id,
-    reasoningEfforts: effortsOf(model),
+    reasoningEfforts: effortsOf(model, levels),
   }
 }
 
@@ -102,20 +108,26 @@ interface ProviderView {
 }
 
 interface PageState {
+  namespace: string
   writable: boolean
   revision: number | undefined
+  levels: readonly string[]
   rawUser: Rec
   providers: ProviderView[]
 }
 
-function pageState(view: SettingsNamespaceView & { writable: boolean }): PageState {
-  const user = isRecord(view.user) ? view.user : {}
+function pageState(document: RawSettingsDocument, namespace: string, levels: readonly string[]): PageState {
+  const namespaces = Array.isArray(document.namespaces) ? (document.namespaces as RawNamespace[]) : []
+  const view = namespaces.find((item) => isRecord(item) && item.ns === namespace)
+  const user = isRecord(view?.user) ? (view as Rec).user as Rec : {}
   const configuredProviders = isRecord(user.providers) ? (user.providers as Rec) : {}
   const providers: ProviderView[] = []
   for (const id of Object.keys(configuredProviders)) {
     const profile = configuredProviders[id]
     if (!isRecord(profile) || !Array.isArray(profile.models)) continue
-    const models = profile.models.map((entry) => modelView(entry)).filter((entry) => entry !== null) as Array<{ id: string; name: string; reasoningEfforts: unknown }>
+    const models = profile.models
+      .map((entry) => modelView(entry, levels))
+      .filter((entry) => entry !== null) as ProviderView["models"]
     if (models.length === 0) continue
     providers.push({
       id,
@@ -125,18 +137,20 @@ function pageState(view: SettingsNamespaceView & { writable: boolean }): PageSta
     })
   }
   return {
-    writable: view.writable === true,
-    revision: typeof view.revision === "number" ? view.revision : undefined,
+    namespace,
+    writable: document.writable === true,
+    revision: typeof view?.revision === "number" ? view.revision : undefined,
+    levels,
     rawUser: user,
     providers,
   }
 }
 
-/** Draft keyed by LEVELS id → wire value. */
-function draftOf(model: { reasoningEfforts: unknown }): Rec {
+/** Draft keyed by level id → wire value. */
+function draftOf(model: { reasoningEfforts: unknown }, levels: readonly string[]): Rec {
   if (!isRecord(model.reasoningEfforts)) return {}
   const result: Rec = {}
-  for (const [id] of LEVELS) {
+  for (const id of levels) {
     if (!Object.prototype.hasOwnProperty.call(model.reasoningEfforts, id)) continue
     const wire = model.reasoningEfforts[id]
     result[id] = wire === null ? "" : String(wire)
@@ -145,12 +159,12 @@ function draftOf(model: { reasoningEfforts: unknown }): Rec {
 }
 
 /** Serialize a draft back to the wire shape: `false` (thinking off) or a wire map. */
-function serializedEfforts(draft: Rec): { value: unknown } | { error: string } {
+function serializedEfforts(draft: Rec, levels: readonly string[]): { value: unknown } | { error: string } {
   const enabled = Object.keys(draft)
   if (enabled.length === 0) return { value: false }
   const result: Rec = {}
   let hasThinking = false
-  for (const [id] of LEVELS) {
+  for (const id of levels) {
     if (!Object.prototype.hasOwnProperty.call(draft, id)) continue
     const wire = String(draft[id]).trim()
     if (id === "off" && wire.length === 0) {
@@ -165,46 +179,60 @@ function serializedEfforts(draft: Rec): { value: unknown } | { error: string } {
   return { value: result }
 }
 
-function summaryOf(efforts: unknown): string {
+function summaryOf(efforts: unknown, levels: readonly string[]): string {
   if (efforts === false) return "已关闭思考"
   if (!isRecord(efforts)) return "未配置（组装器不会显示思考档位）"
   const parts: string[] = []
-  for (const [id, label] of LEVELS) {
+  for (const id of levels) {
     if (!Object.prototype.hasOwnProperty.call(efforts, id)) continue
     const wire = efforts[id]
-    parts.push(`${label} -> ${wire === null ? "不发送参数" : String(wire)}`)
+    parts.push(`${levelLabel(id)} -> ${wire === null ? "不发送参数" : String(wire)}`)
   }
   return parts.length > 0 ? parts.join("，") : "未配置"
 }
 
 interface SectionProps {
-  /** Settings wire face from the connection inject. */
-  api: SettingsApi
+  /** Runtime-probed settings channel, resolved once per plugin activation. */
+  wire: SettingsWire
+  /** Subscribe to pushed settings changes; returns the unsubscribe function. */
+  subscribe: (listener: () => void) => () => void
 }
 
 /** The Settings page body registered into the `settings.section` slot. */
-export function ThinkingLevelsSection({ api }: SectionProps): React.ReactElement {
+export function ThinkingLevelsSection({ wire, subscribe }: SectionProps): React.ReactElement {
   const [state, setState] = React.useState<PageState | null>(null)
   const [status, setStatus] = React.useState<"loading" | "ready" | "error">("loading")
   const [error, setError] = React.useState<string | null>(null)
 
-  const load = React.useCallback(async () => {
-    setStatus("loading")
-    setError(null)
+  const load = React.useCallback(async (silent = false) => {
+    if (!silent) {
+      setStatus("loading")
+      setError(null)
+    }
     try {
-      const view = namespaceView(await api.settings.describe({}))
-      if (!view) throw new Error("llm-pi-ai 设置尚未加载")
-      setState(pageState(view))
+      const document = await wire.describe()
+      const namespace = pickNamespace(document)
+      if (namespace === undefined) {
+        const seen = (Array.isArray(document.namespaces) ? (document.namespaces as RawNamespace[]) : [])
+          .map((item) => (isRecord(item) && typeof item.ns === "string" ? item.ns : "?"))
+          .join("、") || "无"
+        throw new Error(`未找到可编辑的提供方设置命名空间（期望 "${NAMESPACE}"，当前：${seen}）`)
+      }
+      const levels = levelVocabularyFromSchema(document, namespace) ?? [...DEFAULT_LEVELS]
+      setState(pageState(document, namespace, levels))
       setStatus("ready")
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause))
+      const detail = cause instanceof Error ? cause.message : String(cause)
+      setError(`${detail}（settings 通道：${wire.source() ?? "未识别"}）`)
       setStatus("error")
     }
-  }, [api])
+  }, [wire])
 
   React.useEffect(() => {
     void load()
   }, [load])
+
+  React.useEffect(() => subscribe(() => void load(true)), [subscribe, load])
 
   if (status === "loading") {
     return React.createElement("p", { className: "tl-muted" }, "正在读取自定义模型配置...")
@@ -236,7 +264,14 @@ export function ThinkingLevelsSection({ api }: SectionProps): React.ReactElement
           React.createElement("h3", { className: "tl-provider-title" }, provider.name,
             React.createElement("span", { className: "tl-provider-meta" }, provider.id + (provider.api ? ` · ${provider.api}` : ""))),
           ...provider.models.map((model) =>
-            React.createElement(ModelEditor, { key: `${provider.id}:${model.id}`, api, state, provider, model, onCommitted: setState })),
+            React.createElement(ModelEditor, {
+              key: `${provider.id}:${model.id}`,
+              wire,
+              state,
+              provider,
+              model,
+              onSaved: () => void load(true),
+            })),
         )),
     )
   }
@@ -245,20 +280,20 @@ export function ThinkingLevelsSection({ api }: SectionProps): React.ReactElement
 }
 
 interface ModelEditorProps {
-  api: SettingsApi
+  wire: SettingsWire
   state: PageState
   provider: ProviderView
   model: { id: string; name: string; reasoningEfforts: unknown }
-  onCommitted: (next: PageState) => void
+  onSaved: () => void
 }
 
-function ModelEditor({ api, state, provider, model, onCommitted }: ModelEditorProps): React.ReactElement {
-  const [draft, setDraft] = React.useState<Rec>(() => draftOf(model))
+function ModelEditor({ wire, state, provider, model, onSaved }: ModelEditorProps): React.ReactElement {
+  const [draft, setDraft] = React.useState<Rec>(() => draftOf(model, state.levels))
   const [busy, setBusy] = React.useState(false)
   const [notice, setNotice] = React.useState<{ type: "success" | "error"; text: string } | null>(null)
 
   React.useEffect(() => {
-    setDraft(draftOf(model))
+    setDraft(draftOf(model, state.levels))
     setNotice(null)
   }, [model.id, JSON.stringify(model.reasoningEfforts)])
 
@@ -278,9 +313,9 @@ function ModelEditor({ api, state, provider, model, onCommitted }: ModelEditorPr
   }
 
   const save = async (nextDraft: Rec) => {
-    const prepared = serializedEfforts(nextDraft)
+    const prepared = serializedEfforts(nextDraft, state.levels)
     if (prepared && "error" in prepared) {
-      setNotice({ type: "error", text: (prepared as { error: string }).error })
+      setNotice({ type: "error", text: prepared.error })
       return
     }
     setBusy(true)
@@ -293,22 +328,16 @@ function ModelEditor({ api, state, provider, model, onCommitted }: ModelEditorPr
         if (isRecord(copy) && copy.id === model.id) copy.reasoningEfforts = prepared.value
         return copy
       })
-      const response = await api.settings.mutate({
-        ns: NAMESPACE,
-        ops: [{ op: "set", path: ["providers", provider.id, "models"], value: models }],
-        expectedRevision: state.revision,
-      })
-      if (!response.result.ok) {
-        if (response.result.error.code === "settings-conflict") {
-          throw new Error("设置已在其他位置更新，请刷新后重试")
-        }
-        throw new Error(response.result.error.message)
-      }
-      const nextState = pageState(Object.assign({}, response.result.value, { writable: state.writable }))
-      onCommitted(nextState)
+      await wire.mutate(state.namespace, [{ op: "set", path: ["providers", provider.id, "models"], value: models }], state.revision)
       setNotice({ type: "success", text: "已保存到 settings.yaml" })
+      onSaved()
     } catch (cause) {
-      setNotice({ type: "error", text: cause instanceof Error ? cause.message : String(cause) })
+      if (cause instanceof SettingsCallError && cause.conflict) {
+        setNotice({ type: "error", text: "设置已在其他位置更新，已重新读取最新值，请确认后再次保存" })
+        onSaved()
+      } else {
+        setNotice({ type: "error", text: cause instanceof Error ? cause.message : String(cause) })
+      }
     } finally {
       setBusy(false)
     }
@@ -316,7 +345,7 @@ function ModelEditor({ api, state, provider, model, onCommitted }: ModelEditorPr
 
   const applyPreset = (efforts: Record<string, string>) => {
     const next: Rec = {}
-    for (const [id] of LEVELS) {
+    for (const id of state.levels) {
       if (Object.prototype.hasOwnProperty.call(efforts, id)) next[id] = efforts[id]
     }
     setDraft(next)
@@ -328,7 +357,7 @@ function ModelEditor({ api, state, provider, model, onCommitted }: ModelEditorPr
       React.createElement("div", null,
         React.createElement("div", { className: "tl-model-name" }, model.name),
         model.name !== model.id ? React.createElement("div", { className: "tl-model-id" }, model.id) : null,
-        React.createElement("div", { className: "tl-current" }, `当前配置：${summaryOf(model.reasoningEfforts)}`),
+        React.createElement("div", { className: "tl-current" }, `当前配置：${summaryOf(model.reasoningEfforts, state.levels)}`),
       ),
       React.createElement("div", { className: "tl-presets" },
         ...PRESETS.map(([label, efforts]) =>
@@ -342,7 +371,7 @@ function ModelEditor({ api, state, provider, model, onCommitted }: ModelEditorPr
       ),
     ),
     React.createElement("div", { className: "tl-levels" },
-      ...LEVELS.map(([id, label]) => {
+      ...state.levels.map((id) => {
         const checked = Object.prototype.hasOwnProperty.call(draft, id)
         return React.createElement("label", { key: id, className: checked ? "tl-level tl-level-on" : "tl-level" },
           React.createElement("input", {
@@ -351,14 +380,14 @@ function ModelEditor({ api, state, provider, model, onCommitted }: ModelEditorPr
             disabled: busy || !state.writable,
             onChange: () => toggle(id),
           }),
-          React.createElement("span", { className: "tl-label" }, label),
+          React.createElement("span", { className: "tl-label" }, levelLabel(id)),
           checked
             ? React.createElement("input", {
                 className: "tl-wire",
                 value: typeof draft[id] === "string" ? draft[id] as string : "",
                 disabled: busy || !state.writable,
                 placeholder: id === "off" ? "none 或留空" : id,
-                onChange: (event) => setWire(id, event.target.value),
+                onChange: (event: React.ChangeEvent<HTMLInputElement>) => setWire(id, event.target.value),
               })
             : React.createElement("span", { className: "tl-unavailable" }, "不提供"),
         )
@@ -412,11 +441,48 @@ const CSS = `
 
 /** Client plugin apply: register the settings.section contribution, cleaned up on fiber unload. */
 export function apply(ctx: any): void {
+  // One runtime-probed channel shared by every mount of this section; holders
+  // are re-read on each call, so a service that arrives after activation is
+  // still found.
+  const wire = resolveSettingsWire([ctx])
   ctx.effect(() => {
     const style = document.createElement("style")
     style.dataset.plugin = "dsh-thinking-levels-settings"
     style.textContent = CSS
     document.head.appendChild(style)
+
+    // Pushed refresh: prefer the Remote event bus, fall back to the local
+    // event bus; both are optional enhancements, never requirements.
+    const listeners = new Set<() => void>()
+    const notify = () => {
+      for (const listener of [...listeners]) listener()
+    }
+    const disposers: Array<() => void> = []
+    try {
+      const remote: unknown = typeof ctx.get === "function" ? ctx.get("remote") : undefined
+      const remoteOn = isRecord(remote) && typeof remote.$on === "function" ? (remote.$on as (event: string, listener: () => void) => unknown) : undefined
+      if (remoteOn !== undefined) {
+        const dispose = remoteOn("settings/document-updated", notify)
+        if (typeof dispose === "function") disposers.push(dispose as () => void)
+      }
+    } catch {
+      /* no pushed invalidation — the page still reloads on open and on retry */
+    }
+    try {
+      if (typeof ctx.on === "function") {
+        const dispose = ctx.on("connection/reset", notify)
+        if (typeof dispose === "function") disposers.push(dispose as () => void)
+      }
+    } catch {
+      /* same */
+    }
+    const subscribe = (listener: () => void): (() => void) => {
+      listeners.add(listener)
+      return () => {
+        listeners.delete(listener)
+      }
+    }
+
     const disposeSlot = ctx.slots.inject("settings.section", () =>
       ctx.slots.register(
         {
@@ -425,15 +491,23 @@ export function apply(ctx: any): void {
           order: 11,
           label: "思考级别",
         },
-        () => React.createElement(ThinkingLevelsSection, { api: ctx.connection.api }),
+        () => React.createElement(ThinkingLevelsSection, { wire, subscribe }),
       ),
     )
     return () => {
       disposeSlot()
+      for (const dispose of disposers.reverse()) {
+        try {
+          dispose()
+        } catch {
+          /* a stale disposer is harmless */
+        }
+      }
+      listeners.clear()
       style.remove()
     }
   }, "thinking-levels: settings section")
 }
 
-/** Required services: the connection (settings wire) and the slot system. */
-export const inject = ["connection", "slots"]
+/** Hard service dependency: without the slot system there is nothing to register. Everything else is probed. */
+export const inject = ["slots"]

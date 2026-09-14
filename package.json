@@ -1,6 +1,6 @@
 {
   "name": "dsh-thinking-levels-settings",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Persistent per-model thinking-level settings for custom DSH providers (official dsh client-plugin form)",
   "type": "module",
   "main": "./lib/index.js",
@@ -45,20 +45,14 @@
     "client": {
       "platform": "web",
       "inject": [
-        "@deepseek-ai/dsh-client-runtime",
         "@deepseek-ai/dsh-client-ui-settings",
-        "@deepseek-ai/dsh-api-remotes"
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-client-connection"
       ]
     }
   },
   "license": "MIT",
   "private": true,
-  "dependencies": {
-    "@deepseek-ai/dsh-api-remotes": "^0.1.0-rc.6",
-    "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.6",
-    "@deepseek-ai/dsh-client-ui-settings": "^0.1.0-rc.6",
-    "@deepseek-ai/dsh-host-apiproxy": "^0.1.0-rc.6"
-  },
   "devDependencies": {
     "@types/react": "~18.3.1",
     "react": "^18.2.0",

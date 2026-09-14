@@ -216,13 +216,32 @@ tar -czf dsh-thinking-levels-settings.tar.gz dsh-thinking-levels-settings
 
 ## 数据形状
 
-写路径：`api.settings.mutate({ ns: 'llm-pi-ai', ops: [{ op: 'set',
-path: ['providers', <provider>, 'models'], value: <models with reasoningEfforts> }],
-expectedRevision })`；冲突（`settings-conflict`）会提示刷新重试。
+写路径经运行时探测到的 settings 通道（现行 DSH 为 `remote.settings.mutate(ns, ops, expectedRevision)`，
+旧版 `connection.api.settings` 对象参数形状自动回退），ops 形如：
+
+```js
+[{ op: "set", path: ["providers", <provider>, "models"], value: <models with reasoningEfforts> }]
+```
+
+revision 冲突（`settings/conflict` / 旧版 `settings-conflict`）会提示刷新后重试，不会自动重写。
 
 `reasoningEfforts` 取值：`false`（关闭思考）/ 对象（档位 → 协议值，`null` 表示不发送参数）。
+档位词表优先从该命名空间的 settings schema 里发现，发现失败回退内置 off…max。
+
+## 版本兼容与故障定位
+
+v2.1.0 起不再写死平台契约（包名、服务键、响应信封、参数形状全部运行时探测/归一，见 README
+「版本兼容」）。DSH 升级后一般无需重装本插件。若页面显示红色错误面板：
+
+1. 括号里 `settings 通道：…` 标出实际命中的 holder 路径 —— 显示"未识别"说明候选表需要补充，
+   把该行报文反馈即可定位。
+2. 页签完全不出现：`curl -s http://127.0.0.1:3080/ | grep -o '"id":"dsh-thinking-levels-settings"[^}]*}'`
+   确认 boot 行还在（patch 行被删 / profile 换了会缺）。
+3. boot 日志出现 `pending (waiting for service: slots)`：说明该 DSH 版本连 slots 服务都没挂载，
+   属于宿主组合问题而非本插件。
 
 ## 已知限制
 
-- 只作用于 `llm-pi-ai` 命名空间（`dsh-llm-pi-ai` 注册的 provider 模型）。
-- 本页要求 `llm-pi-ai` 命名空间已暴露（未加载时页内提示“尚未加载”）。
+- 默认编辑 `llm-pi-ai` 命名空间（`dsh-llm-pi-ai` 注册的 provider 模型）；若该名字改变，
+  页面会按"含 providers 段 + 档位词表"的形状寻找替代命名空间，找不到时报错并列出可见命名空间。
+- 只读 provider（`writable: false`）下所有保存按钮禁用，页面仍可查看全部配置。

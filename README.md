@@ -8,9 +8,9 @@
 
 ## ✨ 功能
 
-- **按模型配置**：为每个模型单独设置推理档位（7 档 + 关闭）
-- **预设档位**：DeepSeek / OpenAI / Grok 三套协议的预置映射
-- **表格编辑**：勾选启用、输入框改值、撤销/保存即时生效（带冲突检测）
+- **按模型配置**：为每个模型单独设置推理档位（档位词表从 DSH settings schema 发现，内置 Off…Max 回退）
+- **预设档位**：DeepSeek / OpenAI / Grok 三套协议的预置映射（按当前可用档位取子集）
+- **表格编辑**：勾选启用、输入框改协议值，按模型保存（带 revision 冲突检测）
 - **持久化**：写入 `~/.dsh/settings.yaml`，重启后保留
 - **组件化**：作为 `settings.section` 槽位贡献注册，挂在设置页「思考级别」分节
 
@@ -125,14 +125,34 @@ bash install.sh            # 默认 profile: web；DSH_PROFILE=xxx 可指定
 
 ## 🧩 前提
 
-- DSH（DeepSeek Harness）rc.6 及同架构版本
-- profile 里配置了自定义 `llm-pi-ai` 提供方（否则页面提示「尚未加载」）
+- DSH（DeepSeek Harness）Web 任意近版本（见下「版本兼容」）
+- profile 里配置了自定义 `llm-pi-ai` 提供方（否则页面提示「没有找到可编辑的提供方」）
 - 方式 A / 方式 B 需要本机有 **pnpm**（`dsh plugin` 是 pnpm 转发器）
+
+## 🧭 版本兼容（不写死平台契约）
+
+本插件曾在 rc.6 → rc.2 升级中失效，原因是三处写死的平台契约：`dsh.client.inject`
+里的包名、`ctx.connection.api` 服务键、`{result:{ok}}` 响应信封。当前版本改为：
+
+- **settings 通道运行时探测**：按 `remote.settings → api.settings → connection.api.settings`
+  与 `describe/getSettings → mutate/mutateSettings` 的候选名逐个探测，能返回带命名空间列表的
+  文档才算命中；信封支持 `{ok,value|error}` / `{result:{…}}` / `{success,data}` / 裸文档。
+- **调用形状回退**：先按现行 `mutate(ns, ops, rev)` 位置参数，失败且属装配错误时回退旧版
+  `mutate({ns, ops, expectedRevision})`；业务失败（冲突/校验）绝不换形重试，避免双写。
+- **档位词表从 settings schema 发现**：读取 `reasoningEfforts` 键联合节点；发现失败时回退内置
+  `off/minimal/low/medium/high/xhigh/max`。DSH 以后加档位无需升级本插件。
+- **写入语义白名单**：只调用以 ops 为第二参数的 `mutate`；`update/replace` 的第二参数是整段
+  section，语义不同，绝不作为候选（防脏写）。
+- `dsh.client.inject` 只作为**到达顺序提示**（loader 对未知名静默跳过，服务本身靠 ctx.get 探测）。
+- 硬依赖只剩 `slots`（官方插件也这么用，且 fiber 停在 pending 时 boot 有明确报错）。
+
+升级 DSH 后通常**无需重装本插件**；若页面显示错误面板，括号里会标出实际命中的 settings 通道，
+便于对照此处候选表补充。
 
 ## 🚀 开发
 
 ```sh
-npm install        # 安装 tsdown / typescript / @deepseek-ai client 依赖
+npm install        # 安装 tsdown / typescript / react 类型（无平台运行时依赖）
 npm run bundle     # 构建: tsdown 产出 lib/ + tsc 产出 lib/types
 npm run watch      # 开发模式: 自动重建
 ```
@@ -142,6 +162,7 @@ npm run watch      # 开发模式: 自动重建
 ```
 src/index.ts        # node 半入口（空 apply，纯 UI 页）
 src/client/index.ts # 浏览器半: settings.section 槽注册 + 设置页组件 + CSS
+src/client/settings-wire.ts # 版本容错 settings 通道（纯逻辑，可独立测试）
 src/invariant.ts    # invariant companion（包所有权注册）
 tsdown.config.ts    # 官方 tsdown.client.ts 形态（clientBundle + node twin）
 lib/                # 构建产物（npm run bundle 生成）
