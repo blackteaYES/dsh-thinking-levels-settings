@@ -1,6 +1,6 @@
 {
   "name": "dsh-thinking-levels-settings",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Persistent per-model thinking-level settings for custom DSH providers (official dsh client-plugin form)",
   "type": "module",
   "main": "./lib/index.js",
@@ -53,6 +53,14 @@
   },
   "license": "MIT",
   "private": true,
+  "peerDependencies": {
+    "react": "^18.2.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@types/react": "~18.3.1",
     "react": "^18.2.0",
