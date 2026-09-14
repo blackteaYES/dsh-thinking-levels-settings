@@ -1,6 +1,6 @@
 {
   "name": "dsh-thinking-levels-settings",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Persistent per-model thinking-level settings for custom DSH providers (official dsh client-plugin form)",
   "type": "module",
   "main": "./lib/index.js",
@@ -44,43 +44,23 @@
     "client": {
       "platform": "web",
       "inject": [
-        "@deepseek-ai/dsh-client-runtime",
         "@deepseek-ai/dsh-client-ui-settings",
-        "@deepseek-ai/dsh-api-remotes"
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-client-connection"
       ]
     }
   },
   "license": "MIT",
   "private": true,
   "peerDependencies": {
-    "@deepseek-ai/dsh-api-remotes": "*",
-    "@deepseek-ai/dsh-client-runtime": "*",
-    "@deepseek-ai/dsh-client-ui-settings": "*",
-    "@deepseek-ai/dsh-host-apiproxy": "*",
     "react": "^18.2.0"
   },
   "peerDependenciesMeta": {
-    "@deepseek-ai/dsh-api-remotes": {
-      "optional": true
-    },
-    "@deepseek-ai/dsh-client-runtime": {
-      "optional": true
-    },
-    "@deepseek-ai/dsh-client-ui-settings": {
-      "optional": true
-    },
-    "@deepseek-ai/dsh-host-apiproxy": {
-      "optional": true
-    },
     "react": {
       "optional": true
     }
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-api-remotes": "^0.1.0-rc.6",
-    "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.6",
-    "@deepseek-ai/dsh-client-ui-settings": "^0.1.0-rc.6",
-    "@deepseek-ai/dsh-host-apiproxy": "^0.1.0-rc.6",
     "@types/react": "~18.3.1",
     "react": "^18.2.0",
     "tsdown": "^0.22.14",

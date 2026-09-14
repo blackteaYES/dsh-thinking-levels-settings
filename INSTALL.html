@@ -67,7 +67,7 @@
 <div class="wrap">
 
 <h1>dsh-thinking-levels-settings 安装与导出教程</h1>
-<p class="sub">DSH Web 自定义插件 · 官方 client-plugin 形态（v2.1.0）· 平台模块由宿主 module table 提供，随 DSH 版本兼容</p>
+<p class="sub">DSH Web 自定义插件 · 官方 client-plugin 形态（v2.2.0）· 平台模块由宿主 module table 提供，随 DSH 版本兼容</p>
 
 <div class="toc">
   <strong>目录</strong>
@@ -168,7 +168,7 @@ pnpm --version</code></pre>
 <div class="step"><span class="step-num">1</span><strong>拿到发布包（tarball）</strong>
   <p>从 release 页下载 <code>dsh-thinking-levels-settings-&lt;version&gt;.tgz</code>，
   或直接使用直链一步安装（tarball 由 CI 在打 <code>v*</code> tag 时自动构建附加）：</p>
-  <pre><code>dsh plugin --profile web add https://github.com/blackteaYES/dsh-thinking-levels-settings/releases/download/v2.1.0/dsh-thinking-levels-settings-2.1.0.tgz</code></pre>
+  <pre><code>dsh plugin --profile web add https://github.com/blackteaYES/dsh-thinking-levels-settings/releases/download/v2.2.0/dsh-thinking-levels-settings-2.2.0.tgz</code></pre>
 </div>
 
 <div class="step"><span class="step-num">2</span><strong>安装效果</strong>
@@ -189,7 +189,7 @@ pnpm --version</code></pre>
 
 <h3 id="install-script">方式 C：一键脚本（无 pnpm 环境）</h3>
 <div class="step"><span class="step-num">1</span><strong>解包</strong>
-  <pre><code>tar -xzf dsh-thinking-levels-settings-2.1.0.tgz -C /tmp/rel
+  <pre><code>tar -xzf dsh-thinking-levels-settings-2.2.0.tgz -C /tmp/rel
 cd /tmp/rel/package</code></pre>
 </div>
 
@@ -242,7 +242,7 @@ dsh plugin --profile web remove dsh-thinking-levels-settings    # 等价 pnpm re
 </div>
 <div class="step"><span class="step-num">3</span><strong>重启验证后重装 2.1+</strong>
   <p>重启 dsh web，确认历史会话恢复正常（不再报 history unavailable），再按方式 A / B 安装 2.1+。
-  2.1 起宿主包改为 optional peerDependencies，任何 pnpm 配置下都不会再物化副本。</p>
+  2.1 起宿主包改为 optional peerDependencies，2.2 起不再声明任何 @deepseek-ai 包（dev/peer 全无），任何 pnpm 配置下都不会再物化副本。</p>
 </div>
 
 <h2 id="install-source">3. 在新 DSH 中安装（源码法：可继续开发）</h2>
@@ -335,7 +335,7 @@ npm run bundle   # 确保 lib/ 是最新产物（含 invariant.js 与 types/）<
 <div class="step"><span class="step-num">3</span><strong>（只想手工装）目标机解包 + 挂载行</strong>
   <pre><code>mkdir -p ~/.dsh/profiles/web/packages
 cd ~/.dsh/profiles/web/packages
-tar -xzf dsh-thinking-levels-settings-2.1.0.tgz   # 解出 package/ 目录
+tar -xzf dsh-thinking-levels-settings-2.2.0.tgz   # 解出 package/ 目录
 mv package dsh-thinking-levels-settings
 ls dsh-thinking-levels-settings/lib/   # 确认 client.js / index.js / invariant.js / types</code></pre>
 </div>
