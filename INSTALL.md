@@ -31,6 +31,7 @@ src/client/levels.ts        # 纯逻辑：档位词表、投影、校验、摘�
 src/client/locale.ts        # {zh, en} 字典 + locale 服务缺席时的回退 translator
 src/client/model-form.ts    # 模型展开区：三种推理模式 + 档位 + 输入能力 + 预览
 src/client/provider-group.ts# 提供方分组与双层折叠渲染
+src/client/menu.ts          # 「更多 ▾」溢出菜单（低频筛选 + 导出/导入）
 src/client/settings-wire.ts # 版本容错 settings 通道（纯逻辑，可独立测试）
 src/invariant.ts            # 配套 invariant companion（注册包所有权）
 tsdown.config.ts    # 官方 tsdown.client.ts 形态（clientBundle + node twin）
