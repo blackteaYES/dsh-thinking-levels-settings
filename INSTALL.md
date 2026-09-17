@@ -9,6 +9,14 @@
 `reasoningEfforts`（off/minimal/low/medium/high/xhigh/max），通过官方 Settings wire
 持久化到 `~/.dsh/settings.yaml`。
 
+图标为内联 16px 线性 SVG（与平台图标同款画法），均 aria-hidden 且始终伴随文字，不使用 emoji。
+页脚显示当前插件版本（构建时从 package.json 注入，可确认安装是否生效）。
+页面支持：逐模型三种推理模式（继承目录 / 非推理 / 启用档位，非法形态在 UI 层即被拦下）、
+`text`/`image` 输入能力勾选、协议预设、双层折叠（提供方 + 模型行）、搜索 + 快捷筛选片
+（`全部`/`支持图片`）与「更多 ▾」菜单（低级筛选 + JSON 导出导入）、
+按提供方批量「一次数组写」保存（带 revision 冲突检测）、实时预览、JSON 导出/导入（导入只填草稿），
+以及接入 DSH 自带 locale 服务的 `zh`/`en` 双语。
+
 纯客户端插件：node 半（`lib/index.js`）`apply` 为空；浏览器半（`lib/client.js`）以官方
 `window.__ModuleLoader__.load` 闭包工厂注册 `settings.section` 槽位贡献。安装不需要改
 `dsh.profile.bundles`，也不需要 `dsh.bundle` —— 以一行 patch 挂载，与官方 `dsh plugin add` 语义一致。
@@ -17,9 +25,14 @@
 
 ```
 package.json        # dsh.client 清单、exports(./client、./invariant、./src/*)、files
-src/index.ts        # node 半：host loader entry（空 apply，纯 UI 页）
-src/client/index.ts # 浏览器半：settings.section 槽注册 + 设置页组件 + CSS
-src/invariant.ts    # 配套 invariant companion（注册包所有权）
+src/index.ts                # node 半：host loader entry（空 apply，纯 UI 页）
+src/client/index.ts         # 浏览器半：槽注册 + 页面外壳 + 搜索筛选 + 保存 + CSS
+src/client/levels.ts        # 纯逻辑：档位词表、投影、校验、摘要、预设、JSON 导入导出
+src/client/locale.ts        # {zh, en} 字典 + locale 服务缺席时的回退 translator
+src/client/model-form.ts    # 模型展开区：三种推理模式 + 档位 + 输入能力 + 预览
+src/client/provider-group.ts# 提供方分组与双层折叠渲染
+src/client/settings-wire.ts # 版本容错 settings 通道（纯逻辑，可独立测试）
+src/invariant.ts            # 配套 invariant companion（注册包所有权）
 tsdown.config.ts    # 官方 tsdown.client.ts 形态（clientBundle + node twin）
 lib/index.js        # 构建产物：node 半（apply=空）
 lib/client.js       # 构建产物：window.__ModuleLoader__.load({id, factory}) 闭包工厂
@@ -123,7 +136,7 @@ git 依赖的 `prepare` 构建。官方依据：[从 GitHub 安装：构建脚�
 `dsh-thinking-levels-settings-<version>.tgz`，或直接直链一步安装：
 
 ```sh
-dsh plugin --profile web add https://github.com/blackteaYES/dsh-thinking-levels-settings/releases/download/v2.2.0/dsh-thinking-levels-settings-2.2.0.tgz
+dsh plugin --profile web add https://github.com/blackteaYES/dsh-thinking-levels-settings/releases/download/v3.0.0/dsh-thinking-levels-settings-3.0.0.tgz
 # 如遇 ERR_PNPM_ADDING_TO_ROOT 加 -w：dsh plugin --profile web add -w <上面的 URL 或本地路径>
 ```
 
@@ -164,7 +177,7 @@ dsh plugin --profile web remove dsh-thinking-levels-settings    # 等价 pnpm re
 解包后运行：
 
 ```sh
-tar -xzf dsh-thinking-levels-settings-2.2.0.tgz -C /tmp/rel
+tar -xzf dsh-thinking-levels-settings-3.0.0.tgz -C /tmp/rel
 cd /tmp/rel/package
 bash install.sh            # 默认 profile: web；DSH_PROFILE=xxx 可指定
 ```

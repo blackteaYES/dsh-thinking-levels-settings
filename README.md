@@ -10,11 +10,38 @@
 
 ## ✨ 功能
 
-- **按模型配置**：为每个模型单独设置推理档位（档位词表从 DSH settings schema 发现，内置 Off…Max 回退）
+- **按模型配置**：为每个模型单独设置推理档位。档位词表从 DSH settings schema 发现
+  （`off / minimal / low / medium / high / xhigh / max`，DSH 未来新增档位会自动跟随），
+  发现失败时回退内置七个
+- **三种推理模式**（对应 `reasoningEfforts` 的三种合法形态，非法组合无法写出）：
+  - `继承目录` —— 省略该字段，沿用内置目录对该模型的能力声明
+  - `非推理` —— 写入 `reasoningEfforts: false`，模型菜单不提供任何档位
+  - `启用档位` —— 逐档声明协议值；除 `Off` 外至少需要一个档位（DSH 硬校验）
+- **输入能力**：勾选 `text` / `image`。两个都不勾 = 省略该字段，沿用目录；
+  这是对端点的断言而非检查，端点不接受的输入由提供方拒绝
 - **预设档位**：DeepSeek / OpenAI / Grok 三套协议的预置映射（按当前可用档位取子集）
-- **表格编辑**：勾选启用、输入框改协议值，按模型保存（带 revision 冲突检测）
+- **双层折叠**：提供方分组 + 模型行两级折叠，折叠行仍显示档位摘要与 `文/图` 徽章；
+  折叠状态记入 localStorage
+- **搜索与筛选**：按模型名/ID/提供方搜索；快捷筛选片 `全部 / 支持图片`，其余筛选
+  （`已配置 / 未配置 / 非推理 / 未保存`）与 JSON 导出导入一起收进「更多 ▾」菜单，
+  选中后按钮上直接显示筛选名；筛选只展开命中分组，**不会自动铺开模型卡片**
+- **保存与预览**：按提供方批量单次写入（一次数组写，不会半成功），也支持逐模型保存；
+  展开区实时预览「模型菜单将提供哪些档位」；写入带 `expectedRevision`，
+  冲突时提示重读而非覆盖
+- **导出 / 导入 JSON**：导出当前草稿（含未保存改动）为 JSON，导入只填草稿供确认，
+  导入永远不会直接写 `settings.yaml`
+- **国际化**：接入 DSH 自带 locale 服务（`zh` / `en`），跟随设置里的语言偏好；
+  locale 服务缺席时回退内置中文文案，页面不会显示裸 key
 - **持久化**：写入 `~/.dsh/settings.yaml`，重启后保留
 - **组件化**：作为 `settings.section` 槽位贡献注册，挂在设置页「思考级别」分节
+
+### 写入策略（为什么是整段替换）
+
+设置项的路径操作**不支持数组下标**：`applyPathOp` 会把数组当作非对象，于是
+`path: ["providers", id, "models", "0", "input"]` 会把整个 `models` **列表降级成
+`{"0": {...}}`**，等于摧毁数据。因此本插件每次保存都是：克隆整个 `models` 数组 →
+只改自己负责的条目 → 用**一个** `set` 操作写回整段数组，并带上 `expectedRevision`。
+DSH 在落盘前先校验，revision 不匹配则拒绝而非覆盖。
 
 ## 📦 安装
 
@@ -72,7 +99,7 @@ dsh plugin --profile web add github:blackteaYES/dsh-thinking-levels-settings#mas
 `dsh-thinking-levels-settings-<version>.tgz`，或直接用直链一步安装：
 
 ```sh
-dsh plugin --profile web add https://github.com/blackteaYES/dsh-thinking-levels-settings/releases/download/v2.2.0/dsh-thinking-levels-settings-2.2.0.tgz
+dsh plugin --profile web add https://github.com/blackteaYES/dsh-thinking-levels-settings/releases/download/v3.0.0/dsh-thinking-levels-settings-3.0.0.tgz
 ```
 
 - 自动加入 `dsh.profile.bundles`（reconcile 识别 `dsh.bundle`）
@@ -86,7 +113,7 @@ tarball 由 CI 在打 `v*` tag 时自动构建并附加到 Release（`.github/wo
 解包后运行：
 
 ```sh
-tar -xzf dsh-thinking-levels-settings-2.2.0.tgz -C /tmp/rel
+tar -xzf dsh-thinking-levels-settings-3.0.0.tgz -C /tmp/rel
 cd /tmp/rel/package
 bash install.sh            # 默认 profile: web；DSH_PROFILE=xxx 可指定
 ```
@@ -178,15 +205,33 @@ npm run watch      # 开发模式: 自动重建
 结构：
 
 ```
-src/index.ts        # node 半入口（空 apply，纯 UI 页）
-src/client/index.ts # 浏览器半: settings.section 槽注册 + 设置页组件 + CSS
-src/client/settings-wire.ts # 版本容错 settings 通道（纯逻辑，可独立测试）
-src/invariant.ts    # invariant companion（包所有权注册）
-tsdown.config.ts    # 官方 tsdown.client.ts 形态（clientBundle + node twin）
-lib/                # 构建产物（npm run bundle 生成）
-cordis.patch.yml   # 一行 patch 模板（dsh.bundle 引用它）
-release.sh          # 一键产出 npm pack 形态发布包 .tgz
-install.sh          # 一键安装脚本（双路径）
+src/index.ts                # node 半入口（空 apply，纯 UI 页）
+src/client/index.ts         # 浏览器半: 槽注册、页面外壳、搜索/筛选、保存、i18n 接入 + CSS
+#                             (含页脚版本号：构建时由 tsdown 注入 package.json 的 version)
+src/client/levels.ts        # 纯逻辑: 档位词表、投影、校验、摘要、预设、JSON 导入导出
+src/client/locale.ts        # {zh, en} 字典 + 无 locale 服务时的回退 translator
+src/client/model-form.ts    # 模型展开区：三种推理模式 + 七个档位 + 输入能力 + 预览
+src/client/icons.ts         # 内联 SVG 图标（16px 线性，与平台同款；不 import 平台图标包）
+src/client/provider-group.ts# 提供方分组与双层折叠渲染
+src/client/settings-wire.ts # 版本容错 settings 通道（未改动，纯逻辑，可独立测试）
+src/invariant.ts            # invariant companion（包所有权注册）
+tsdown.config.ts            # 官方 tsdown.client.ts 形态（clientBundle + node twin）
+lib/                        # 构建产物（npm run bundle 生成）
+cordis.patch.yml            # 一行 patch 模板（dsh.bundle 引用它）
+release.sh                  # 一键产出 npm pack 形态发布包 .tgz
+install.sh                  # 一键安装脚本（双路径）
+```
+
+### 无头冒烟测试
+
+`lib/client.js` 的构建产物可以脱离浏览器直接验证：像 Web loader 一样以
+`window.__ModuleLoader__.load({id, factory})` 装载，用一个假的 settings endpoint
+驱动 `apply`，再用 `react-test-renderer` 渲染整页。覆盖写入负载（整段数组、
+字段保留、revision）、校验拦截、冲突分支、搜索筛选、导出导入、以及 locale 切换。
+
+```sh
+npm install --no-save react-test-renderer@18.3.1
+NODE_PATH=$PWD/node_modules node ../.dsh-plugin-downloads/.npm-build/smoke/run.mjs
 ```
 
 ## 📤 发布新版本
@@ -194,7 +239,7 @@ install.sh          # 一键安装脚本（双路径）
 推送 `v<version>` tag 即可，CI 自动构建并把 `.tgz` 附到 GitHub Release（`release.yml`）：
 
 ```sh
-git tag v2.2.0 && git push origin v2.2.0
+git tag v3.0.0 && git push origin v3.0.0
 ```
 
 本地出包仍可用 `bash release.sh`。

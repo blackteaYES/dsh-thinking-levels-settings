@@ -1,6 +1,6 @@
 {
   "name": "dsh-thinking-levels-settings",
-  "version": "2.2.0",
+  "version": "3.0.0",
   "description": "Persistent per-model thinking-level settings for custom DSH providers (official dsh client-plugin form)",
   "type": "module",
   "main": "./lib/index.js",
@@ -30,6 +30,7 @@
     "cordis.patch.yml",
     "INSTALL.html",
     "README.md",
+    "LICENSE",
     "install.sh"
   ],
   "scripts": {
@@ -46,7 +47,8 @@
       "inject": [
         "@deepseek-ai/dsh-client-ui-settings",
         "@deepseek-ai/dsh-api-remotes",
-        "@deepseek-ai/dsh-client-connection"
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-client-locale"
       ]
     }
   },

@@ -67,7 +67,7 @@
 <div class="wrap">
 
 <h1>dsh-thinking-levels-settings 安装与导出教程</h1>
-<p class="sub">DSH Web 自定义插件 · 官方 client-plugin 形态（v2.2.0）· 平台模块由宿主 module table 提供，随 DSH 版本兼容</p>
+<p class="sub">DSH Web 自定义插件 · 官方 client-plugin 形态（v3.0.0）· 平台模块由宿主 module table 提供，随 DSH 版本兼容</p>
 
 <div class="toc">
   <strong>目录</strong>
@@ -89,6 +89,19 @@
   （off / minimal / low / medium / high / xhigh / max），并通过官方 Settings wire 持久化到
   <code>~/.dsh/settings.yaml</code>。
 </p>
+<ul>
+  <li><strong>三种推理模式</strong>：<em>继承目录</em>（不写该字段，由内置目录决定）/ <em>非推理</em>
+    （写 <code>false</code>）/ <em>显式声明档位</em>（档位 → 协议值，留空表示不发参数）。</li>
+  <li><strong>输入能力</strong>：在展开区勾选 <code>input: [text, image]</code>；两项都不勾则省略该字段（继承目录）。</li>
+  <li><strong>分组与折叠</strong>：按 provider 分组，provider 与模型行两级折叠，折叠状态记在浏览器本地。</li>
+  <li><strong>搜索与筛选</strong>：按模型名/ID 搜索；快捷筛选为「全部 / 支持图片」，其余筛选（已配置 / 未配置 / 非推理 / 未保存）与 JSON 导出导入一并收进「更多 ▾」菜单，选中后按钮直接显示筛选名。<strong>筛选只展开命中分组，不会自动铺开模型卡片。</strong></li>
+  <li><strong>按 provider 批量保存</strong>：一个 provider 一次写入，避免半保存；冲突时提示而不覆盖。</li>
+  <li><strong>JSON 导入导出</strong>：导出当前配置，或粘贴 JSON 回填为草稿（导入从不直接写入）。</li>
+  <li><strong>内联图标</strong>：档位表、输入能力、模型状态徽章与工具栏按钮均配 16px 线性 SVG 图标，与平台自带图标同一套画法（<code>viewBox 0 0 16 16</code> / <code>currentColor</code>）；图标一律 <code>aria-hidden</code> 并始终伴随文字，不使用 emoji。</li>
+  <li><strong>版本可见</strong>：页面底部显示当前插件版本（构建时从 <code>package.json</code> 注入），装机后一眼确认生效的是哪个版本。</li>
+  <li><strong>中英双语</strong>：注册 <code>zh</code>/<code>en</code> 词条，跟随平台的
+    <strong>设置 → 通用设置 → 语言</strong>，切换即时生效。</li>
+</ul>
 <p>它是 <strong>纯客户端插件</strong>：node 半（<code>lib/index.js</code>）的 <code>apply</code> 为空，
   浏览器半（<code>lib/client.js</code>）以官方 <code>window.__ModuleLoader__.load</code> 闭包工厂注册
   <code>settings.section</code> 槽位贡献。</p>
@@ -168,7 +181,7 @@ pnpm --version</code></pre>
 <div class="step"><span class="step-num">1</span><strong>拿到发布包（tarball）</strong>
   <p>从 release 页下载 <code>dsh-thinking-levels-settings-&lt;version&gt;.tgz</code>，
   或直接使用直链一步安装（tarball 由 CI 在打 <code>v*</code> tag 时自动构建附加）：</p>
-  <pre><code>dsh plugin --profile web add https://github.com/blackteaYES/dsh-thinking-levels-settings/releases/download/v2.2.0/dsh-thinking-levels-settings-2.2.0.tgz</code></pre>
+  <pre><code>dsh plugin --profile web add https://github.com/blackteaYES/dsh-thinking-levels-settings/releases/download/v3.0.0/dsh-thinking-levels-settings-3.0.0.tgz</code></pre>
 </div>
 
 <div class="step"><span class="step-num">2</span><strong>安装效果</strong>
@@ -189,7 +202,7 @@ pnpm --version</code></pre>
 
 <h3 id="install-script">方式 C：一键脚本（无 pnpm 环境）</h3>
 <div class="step"><span class="step-num">1</span><strong>解包</strong>
-  <pre><code>tar -xzf dsh-thinking-levels-settings-2.2.0.tgz -C /tmp/rel
+  <pre><code>tar -xzf dsh-thinking-levels-settings-3.0.0.tgz -C /tmp/rel
 cd /tmp/rel/package</code></pre>
 </div>
 
@@ -335,7 +348,7 @@ npm run bundle   # 确保 lib/ 是最新产物（含 invariant.js 与 types/）<
 <div class="step"><span class="step-num">3</span><strong>（只想手工装）目标机解包 + 挂载行</strong>
   <pre><code>mkdir -p ~/.dsh/profiles/web/packages
 cd ~/.dsh/profiles/web/packages
-tar -xzf dsh-thinking-levels-settings-2.2.0.tgz   # 解出 package/ 目录
+tar -xzf dsh-thinking-levels-settings-3.0.0.tgz   # 解出 package/ 目录
 mv package dsh-thinking-levels-settings
 ls dsh-thinking-levels-settings/lib/   # 确认 client.js / index.js / invariant.js / types</code></pre>
 </div>
