@@ -48,7 +48,7 @@ rm -f "$OUT"
 npm pack --pack-destination "$OUT_DIR" >/dev/null
 
 # 关键产物检查（兜底：即使未来 npm 不再于 pack 时触发 prepare，也能立刻发现）
-for f in lib/client.js lib/index.js lib/invariant.js lib/types/client/index.d.ts install.sh INSTALL.html cordis.patch.yml; do
+for f in lib/client.js lib/index.js lib/invariant.js lib/types/client/index.d.ts install.sh INSTALL.html cordis.patch.yml LICENSE; do
   [ -f "$f" ] || { echo "错误: 缺少 $f，请先检查构建 (npm run bundle)" >&2; exit 1; }
 done
 [ -f "$OUT" ] || { echo "错误: npm pack 失败" >&2; exit 1; }

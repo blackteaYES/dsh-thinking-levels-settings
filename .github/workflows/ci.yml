@@ -59,7 +59,7 @@ jobs:
         run: |
           mkdir ../publish
           mv lib ../publish/lib
-          cp package.json cordis.patch.yml README.md INSTALL.md INSTALL.html install.sh ../publish/
+          cp package.json cordis.patch.yml README.md INSTALL.md INSTALL.html install.sh LICENSE ../publish/
           # pnpm 对 git 依赖会执行 prepare；产物分支必须免构建，去掉它。
           node -e "const fs=require('node:fs');const f='../publish/package.json';const p=JSON.parse(fs.readFileSync(f,'utf8'));delete p.scripts.prepare;fs.writeFileSync(f,JSON.stringify(p,null,2)+'\n')"
       - name: overwrite master branch with build output

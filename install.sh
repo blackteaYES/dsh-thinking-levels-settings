@@ -49,6 +49,29 @@ if [ ! -f "$PROFILE_DIR/package.json" ]; then
   exit 1
 fi
 
+# --- 构建产物就位 ---
+# `lib/` 是 gitignore 的，所以从 GitHub clone 下来的仓库里没有它。两条路径都
+# 假定产物存在（路径 A 直接打包、路径 B 直接拷贝），缺了就会装出一个加载不
+# 起来的空插件 —— 而且没有任何报错，最坏的一种失败。这里先补上。
+# 从 `master` 产物分支或 Release tarball 装的用户已有 `lib/`，直接跳过。
+if [ -f "$PKG_DIR/lib/client.js" ]; then
+  echo "==> 构建产物已存在，跳过构建"
+else
+  echo "==> 未找到 lib/client.js（源码仓库 clone 的典型情况），开始构建 ..."
+  if [ ! -f "$PKG_DIR/package.json" ]; then
+    echo "错误: 找不到 $PKG_DIR/package.json。" >&2; exit 1
+  fi
+  # npm 的 prepare 会在 npm ci 后自动跑 bundle，但 prepare 是否触发取决于
+  # npm 版本与 --ignore-scripts，所以显式再跑一次 bundle 兜底，不依赖它。
+  ( cd "$PKG_DIR" && npm ci --no-audit --no-fund && npm run bundle )
+  if [ ! -f "$PKG_DIR/lib/client.js" ]; then
+    echo "错误: 构建后仍未生成 $PKG_DIR/lib/client.js。" >&2
+    echo "      请在该目录手动运行 npm ci && npm run bundle 查看详细报错。" >&2
+    exit 1
+  fi
+  echo "==> 构建完成"
+fi
+
 # --- 判断走哪条路径 ---
 DSH_BIN=""
 if command -v dsh >/dev/null 2>&1; then

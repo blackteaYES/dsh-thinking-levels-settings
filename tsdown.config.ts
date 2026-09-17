@@ -18,8 +18,19 @@
  * build time.
  */
 import { defineConfig } from "tsdown"
+import { readFileSync } from "node:fs"
 
 const PLUGIN_ID = "dsh-thinking-levels-settings"
+
+/**
+ * The version shown in the page is injected at build time from package.json,
+ * never hand-maintained: a hardcoded copy drifts from the published version and
+ * misleads exactly when someone is trying to work out which build they are
+ * looking at. Inlined as a literal, so it is also greppable in lib/client.js.
+ */
+const PLUGIN_VERSION: string = JSON.parse(
+  readFileSync(new URL("./package.json", import.meta.url), "utf8"),
+).version
 
 /**
  * Imports answered by the loader's platform seed table. Kept to `react` alone:
@@ -74,6 +85,8 @@ export default defineConfig([
       "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV ?? "production"),
       "import.meta.env.MODE": JSON.stringify(process.env.NODE_ENV ?? "production"),
       "import.meta.env": JSON.stringify({ MODE: process.env.NODE_ENV ?? "production" }),
+      // Surfaced in the page footer so a running build can be identified.
+      __PLUGIN_VERSION__: JSON.stringify(PLUGIN_VERSION),
     },
     plugins: [
       {
