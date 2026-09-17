@@ -213,6 +213,7 @@ src/client/locale.ts        # {zh, en} 字典 + 无 locale 服务时的回退 tr
 src/client/model-form.ts    # 模型展开区：三种推理模式 + 七个档位 + 输入能力 + 预览
 src/client/icons.ts         # 内联 SVG 图标（16px 线性，与平台同款；不 import 平台图标包）
 src/client/provider-group.ts# 提供方分组与双层折叠渲染
+src/client/menu.ts          # 「更多 ▾」溢出菜单：低频筛选 + 导出/导入（Esc/点外关闭、单选态）
 src/client/settings-wire.ts # 版本容错 settings 通道（未改动，纯逻辑，可独立测试）
 src/invariant.ts            # invariant companion（包所有权注册）
 tsdown.config.ts            # 官方 tsdown.client.ts 形态（clientBundle + node twin）
