@@ -25,9 +25,9 @@
 - **搜索与筛选**：按模型名/ID/提供方搜索；快捷筛选片 `全部 / 支持图片`，其余筛选
   （`已配置 / 未配置 / 非推理 / 未保存`）与 JSON 导出导入一起收进「更多 ▾」菜单，
   选中后按钮上直接显示筛选名；筛选只展开命中分组，**不会自动铺开模型卡片**
-- **保存与预览**：按提供方批量单次写入（一次数组写，不会半成功），也支持逐模型保存；
-  展开区实时预览「模型菜单将提供哪些档位」；写入带 `expectedRevision`，
-  冲突时提示重读而非覆盖
+- **保存与预览**：工具栏一个「保存全部」按钮写入当前所有未保存改动；内部按提供方分组，
+  每个提供方恰好一次整段数组写（`set path:["providers",<id>,"models"]`），所以不会半成功；
+  展开区实时预览「模型菜单将提供哪些档位」；写入带 `expectedRevision`，冲突时提示重读而非覆盖
 - **导出 / 导入 JSON**：导出当前草稿（含未保存改动）为 JSON，导入只填草稿供确认，
   导入永远不会直接写 `settings.yaml`
 - **国际化**：接入 DSH 自带 locale 服务（`zh` / `en`），跟随设置里的语言偏好；
@@ -80,16 +80,44 @@ command -v pnpm
 ### 方式 A：#master 直装（推荐，最简；需要 dsh CLI + pnpm）
 
 ```sh
-dsh plugin --profile web add github:blackteaYES/dsh-thinking-levels-settings#master
+dsh plugin --profile web add -w github:blackteaYES/dsh-thinking-levels-settings#master
 ```
+
+**`-w` 要不要加，取决于你的 pnpm 版本**——但加上永远没错，所以统一带上：
+
+| 你的 pnpm | 不加 `-w` | 加 `-w` |
+| --- | --- | --- |
+| < 10.5.0（如 8.x / 9.x / 10.4.x） | ✗ `ERR_PNPM_ADDING_TO_ROOT` | ✓ 正常安装 |
+| ≥ 10.5.0（如 10.5+/11/12） | ✓ 正常安装 | ✓ 正常安装（无害） |
+
+原因是 pnpm 在 10.5.0 放宽了这条检查。dsh 初始化 profile 时会写入
+`pnpm-workspace.yaml`（内容是 `packages: [- .]`，只有一条 pattern，且 profile 目录自己就是
+workspace 根），旧版 pnpm 只要检测到"往 workspace 根加依赖"就拦截：
+
+```js
+// pnpm 10.4.1
+if (!opts.recursive && opts.workspaceDir === opts.dir && !opts.ignoreWorkspaceRootCheck && !opts.workspaceRoot) {
+// pnpm 10.5.0 起多了一个条件
+if (… && opts.workspacePackagePatterns && opts.workspacePackagePatterns.length > 1) {
+```
+
+新条件要求 workspace 里有**多于一条** pattern 才拦截。dsh 写的正好只有一条，所以新 pnpm 不再
+报错。**加 `-w` 在两种版本上都是 rc=0**，因此文档统一带 `-w`，你不必先查版本。
+
+注意别把 `-w` 写成 `--workspace`：`-w` / `--workspace-root` 才是"在 workspace 根上执行"，
+`--workspace` 的含义是"仅当依赖已存在于 workspace 时才添加"。位置也要对：`add -w <包>`。
 
 `master` 分支由 CI（`.github/workflows/ci.yml`）自动维护为**预构建产物分支**——只含 `lib/`
 与包元数据，不含源码、没有 `prepare` 脚本，安装即用：
 
 - **无需本地构建**，pnpm ≥10 也**不再需要 `allowBuilds` 构建授权**
 - 合并到 main 后自动更新；之后 `dsh plugin --profile web update` 即升级到最新构建
-- 如遇 `ERR_PNPM_ADDING_TO_ROOT`，加 `-w`：
-  `dsh plugin --profile web add -w github:blackteaYES/dsh-thinking-levels-settings#master`
+  （它会重新 `git ls-remote` 查询 `master`，不需要 `-w`）
+- 安装过程需要联网访问 GitHub（可选走代理：`HTTPS_PROXY=… dsh plugin …`）
+
+> `github:` 简写与显式 `git+https://github.com/….git` 地址是等价的（pnpm 会归一到同一形态），
+> 用哪个都行。注意两者在 HTTPS 不可达时都会回退尝试 SSH（`git@github.com:`），所以网络受限的
+> 环境请把代理配好。
 
 > 想锁定确定版本、避免「最新即变」？用方式 B 的 Release tarball（不可变的版本锚点）。
 
@@ -99,9 +127,10 @@ dsh plugin --profile web add github:blackteaYES/dsh-thinking-levels-settings#mas
 `dsh-thinking-levels-settings-<version>.tgz`，或直接用直链一步安装：
 
 ```sh
-dsh plugin --profile web add https://github.com/blackteaYES/dsh-thinking-levels-settings/releases/download/v3.0.0/dsh-thinking-levels-settings-3.0.0.tgz
+dsh plugin --profile web add -w https://github.com/blackteaYES/dsh-thinking-levels-settings/releases/download/v3.0.0/dsh-thinking-levels-settings-3.0.0.tgz
 ```
 
+- **`-w` 同样必需**（profile 是 pnpm workspace 根）
 - 自动加入 `dsh.profile.bundles`（reconcile 识别 `dsh.bundle`）
 - **无需手动编辑任何文件，无需构建授权**
 - 完成后重启 dsh，浏览器硬刷新（Ctrl+Shift+R）
@@ -118,7 +147,7 @@ cd /tmp/rel/package
 bash install.sh            # 默认 profile: web；DSH_PROFILE=xxx 可指定
 ```
 
-脚本自动检测：有 `dsh`+`pnpm` 走官方路径（dsh plugin add，失败自动 `-w` 重试），否则手工路径（复制包目录 +
+脚本自动检测：有 `dsh`+`pnpm` 走官方路径（`dsh plugin add -w`，`-w` 必需），否则手工路径（复制包目录 +
 `package.json` 注入 `file:` 依赖 + `cordis.patch.yml` 追加挂载行）。幂等，可重复运行。
 
 ### 方式 D：手工（与官方 client 插件同构）
@@ -223,17 +252,20 @@ release.sh                  # 一键产出 npm pack 形态发布包 .tgz
 install.sh                  # 一键安装脚本（双路径）
 ```
 
-### 无头冒烟测试
+### 验证构建产物
 
-`lib/client.js` 的构建产物可以脱离浏览器直接验证：像 Web loader 一样以
-`window.__ModuleLoader__.load({id, factory})` 装载，用一个假的 settings endpoint
-驱动 `apply`，再用 `react-test-renderer` 渲染整页。覆盖写入负载（整段数组、
-字段保留、revision）、校验拦截、冲突分支、搜索筛选、导出导入、以及 locale 切换。
+仓库不含测试套件，`lib/` 是构建产物（已 gitignore），所以校验分两层：
 
 ```sh
-npm install --no-save react-test-renderer@18.3.1
-NODE_PATH=$PWD/node_modules node ../.dsh-plugin-downloads/.npm-build/smoke/run.mjs
+npm run bundle               # tsdown 打包 + tsc 声明生成，两者都必须零错误
+node --check lib/client.js   # 产物语法有效，可被 loader 装载
 ```
+
+运行时按 `INSTALL.md` / `INSTALL.html` 里那几条 `curl` 检查：启动图里有插件行、`client.js`
+能下载、页脚版本号与 `package.json` 一致。
+
+> 改完源码必须重跑 `npm run bundle`，再**重启 dsh + 硬刷新浏览器（Ctrl+Shift+R）**：
+> `dsh-client-modules` 在启动时读取 `lib/client.js`，不重启不生效。
 
 ## 📤 发布新版本
 
