@@ -174,7 +174,8 @@ dsh plugin --profile web remove dsh-thinking-levels-settings    # 等价 pnpm re
 核对三处残留：
 
 1. **package.json**：`dependencies` 与 `dsh.profile.bundles` 数组里都不应再有
-   `dsh-thinking-levels-settings`（remove 不会动 bundles 字段，有则手工删该行）
+   `dsh-thinking-levels-settings`。用 `dsh plugin remove` 时会自动同步（reconcile 负责）；
+   只有绕过 dsh、直接 `pnpm remove` 时才需手工删该行
 2. **影子目录**：`ls node_modules/@deepseek-ai` 应报不存在或为空；若还有真实目录（非符号链接），
    全是旧插件拖入的副本，整棵删除：`rm -rf node_modules/@deepseek-ai`
 3. **拖入的散包**：`ls node_modules | grep -E '^(zod|immer|zustand|fflate|use-sync-external-store|@standard-schema)$'`
@@ -197,7 +198,7 @@ cd /tmp/rel/package
 bash install.sh            # 默认 profile: web；DSH_PROFILE=xxx 可指定
 ```
 
-脚本自动检测：有 `dsh`+`pnpm` 走官方路径（`dsh plugin add -w`，`-w` 必需），
+脚本自动检测：有 `dsh`+`pnpm` 走官方路径（`dsh plugin add -w`，`-w` 统一带上），
 否则走手工路径（复制包目录 + `package.json` 注入 `file:` 依赖 + `cordis.patch.yml` 追加挂载行）。
 幂等，可重复运行。手工方式本身如下：
 

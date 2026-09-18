@@ -101,8 +101,9 @@ if [ -n "$DSH_BIN" ] && [ "$HAS_PNPM" = "1" ] && [ "${SKIP_PNPM:-0}" != "1" ]; t
     (cd "$STAGE" && tar -czf "$TARBALL" package)
     [ -f "$TARBALL" ] || { echo "错误: tarball 生成失败" >&2; exit 1; }
   fi
-  # -w 是必需的：dsh 的 profile 目录是 pnpm workspace 根（dsh 会写入
-  # pnpm-workspace.yaml），不加 -w 必定 ERR_PNPM_ADDING_TO_ROOT。
+  # -w 统一带上：dsh 的 profile 目录是 pnpm workspace 根（dsh 会写入
+  # pnpm-workspace.yaml）。旧 pnpm (<10.5.0) 不加会 ERR_PNPM_ADDING_TO_ROOT；
+  # 新 pnpm (>=10.5.0) 放宽了检查，加不加都行——加了一律 rc=0，故统一带上。
   echo "==> dsh plugin --profile $PROFILE add -w $TARBALL ..."
   if "$DSH_BIN" plugin --profile "$PROFILE" add -w "$TARBALL"; then
     echo ""

@@ -130,7 +130,7 @@ if (… && opts.workspacePackagePatterns && opts.workspacePackagePatterns.length
 dsh plugin --profile web add -w https://github.com/blackteaYES/dsh-thinking-levels-settings/releases/download/v3.0.0/dsh-thinking-levels-settings-3.0.0.tgz
 ```
 
-- **`-w` 同样必需**（profile 是 pnpm workspace 根）
+- **`-w` 同样统一带上**（旧 pnpm < 10.5.0 必需，新版无害；理由见方式 A）
 - 自动加入 `dsh.profile.bundles`（reconcile 识别 `dsh.bundle`）
 - **无需手动编辑任何文件，无需构建授权**
 - 完成后重启 dsh，浏览器硬刷新（Ctrl+Shift+R）
@@ -147,7 +147,7 @@ cd /tmp/rel/package
 bash install.sh            # 默认 profile: web；DSH_PROFILE=xxx 可指定
 ```
 
-脚本自动检测：有 `dsh`+`pnpm` 走官方路径（`dsh plugin add -w`，`-w` 必需），否则手工路径（复制包目录 +
+脚本自动检测：有 `dsh`+`pnpm` 走官方路径（`dsh plugin add -w`，`-w` 统一带上），否则手工路径（复制包目录 +
 `package.json` 注入 `file:` 依赖 + `cordis.patch.yml` 追加挂载行）。幂等，可重复运行。
 
 ### 方式 D：手工（与官方 client 插件同构）
@@ -181,7 +181,8 @@ dsh plugin --profile web remove dsh-thinking-levels-settings   # 或 pnpm remove
 然后核对三处残留：
 
 1. `~/.dsh/profiles/web/package.json`：`dependencies` 与 `dsh.profile.bundles` 数组里都不应再有
-   `dsh-thinking-levels-settings`（`remove` 不会动 bundles 字段，需手工删）
+   `dsh-thinking-levels-settings`。`dsh plugin remove` 会自动同步 `dsh.profile.bundles`；
+   只有你改用 `pnpm remove` 绕过 dsh 时才需手工删那一行（reconcile 不会跑）
 2. `ls ~/.dsh/profiles/web/node_modules/@deepseek-ai` —— **应不存在或为空**。若还有真实目录
    （非符号链接），它们是旧插件拖入的副本，整棵删掉：
    `rm -rf ~/.dsh/profiles/web/node_modules/@deepseek-ai`

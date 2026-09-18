@@ -201,7 +201,7 @@ pnpm --version</code></pre>
   <p>从 release 页下载 <code>dsh-thinking-levels-settings-&lt;version&gt;.tgz</code>，
   或直接使用直链一步安装（tarball 由 CI 在打 <code>v*</code> tag 时自动构建附加）：</p>
   <pre><code>dsh plugin --profile web add -w https://github.com/blackteaYES/dsh-thinking-levels-settings/releases/download/v3.0.0/dsh-thinking-levels-settings-3.0.0.tgz</code></pre>
-  <p><code>-w</code> 是必需的：profile 目录是 pnpm workspace 根，不加会报
+  <p><code>-w</code> 统一带上（旧 pnpm &lt; 10.5.0 必需，新版无害）：profile 目录是 pnpm workspace 根，不加会报
   <code>ERR_PNPM_ADDING_TO_ROOT</code>。</p>
 </div>
 
@@ -232,7 +232,7 @@ cd /tmp/rel/package</code></pre>
 DSH_PROFILE=web bash install.sh    # 显式指定
 DSH_HOME=/path bash install.sh     # 覆盖 DSH home</code></pre>
   <p>脚本会：检测到 <code>dsh</code> + <code>pnpm</code> 都可用时自动走官方路径
-  （<code>dsh plugin add -w</code>，<code>-w</code> 必需），否则走手工路径。重复运行安全（旧版本备份为
+  （<code>dsh plugin add -w</code>，<code>-w</code> 统一带上），否则走手工路径。重复运行安全（旧版本备份为
   <code>.previous</code>，依赖与 patch 行不重复添加）。</p>
 </div>
 
@@ -261,7 +261,8 @@ dsh plugin --profile web remove dsh-thinking-levels-settings    # 等价 pnpm re
 <div class="step"><span class="step-num">2</span><strong>核对三处残留</strong>
   <ol>
     <li><strong>package.json</strong>：<code>dependencies</code> 与 <code>dsh.profile.bundles</code>
-      数组里都不应再有 <code>dsh-thinking-levels-settings</code>（remove 不会动 bundles 字段，有则手工删）。
+      数组里都不应再有 <code>dsh-thinking-levels-settings</code>。用 <code>dsh plugin remove</code> 会自动
+      同步 bundles；只有绕过 dsh 直接 <code>pnpm remove</code> 时才需手工删那一行。
     </li>
     <li><strong>影子目录</strong>：<code>ls node_modules/@deepseek-ai</code> 应报不存在或为空；
       若还有真实目录（非符号链接），全是旧插件拖入的副本，整棵删除：
@@ -377,7 +378,7 @@ npm run bundle   # 确保 lib/ 是最新产物（含 invariant.js 与 types/）<
   <p>把 <code>dsh-thinking-levels-settings-&lt;version&gt;.tgz</code>（约 20KB）发给目标机（放到 GitHub
   Release、邮件、网盘均可）。目标机有两种安装路径：</p>
   <ul>
-    <li><strong>官方路径</strong>（有 dsh CLI + pnpm）：<code>dsh plugin --profile web add -w ./dsh-thinking-levels-settings-&lt;version&gt;.tgz</code>（<code>-w</code> 必需）</li>
+    <li><strong>官方路径</strong>（有 dsh CLI + pnpm）：<code>dsh plugin --profile web add -w ./dsh-thinking-levels-settings-&lt;version&gt;.tgz</code>（<code>-w</code> 统一带上）</li>
     <li><strong>回退路径</strong>（没有 pnpm）：解包后 <code>bash install.sh</code>（脚本会自动检测，有 dsh+pnpm 就走官方路径，否则走手工路径）</li>
   </ul>
 </div>
@@ -404,7 +405,7 @@ ls dsh-thinking-levels-settings/lib/   # 确认 client.js / index.js / invariant
 
 <div class="note ok"><strong>一键脚本已内置</strong>：发布包（tarball）自带 <code>install.sh</code>，解包后以
   <code>bash install.sh</code> 运行即可——自动检测环境：有 dsh + pnpm 走官方
-  <code>dsh plugin add -w</code> 路径（<code>-w</code> 必需），否则走手工路径（复制包目录 +
+  <code>dsh plugin add -w</code> 路径（<code>-w</code> 统一带上），否则走手工路径（复制包目录 +
   <code>package.json</code> 注入 <code>file:</code> 依赖 + <code>cordis.patch.yml</code> 追加挂载行）。
   幂等，可重复运行。也可显式指定：<code>DSH_PROFILE=web bash install.sh</code>。</div>
 
