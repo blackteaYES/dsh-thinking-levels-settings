@@ -119,7 +119,9 @@
 <div class="note ok">
   <strong>关键机制</strong>：DSH 的 <code>dsh-client-modules</code> 会扫描 profile loader 条目，
   对声明了 <code>dsh.client</code>（platform: web）且 <code>exports["./client"]</code> 指向构建产物的包，
-  把 <code>lib/client.js</code> 作为 <code>/plugins/&lt;id&gt;/client.js</code> 提供给浏览器。
+  把 <code>lib/client.js</code> 以 <strong><code>/plugins/??&lt;id&gt;/client.js&amp;rev=…</code> 组合
+  形式</strong>提供给浏览器（这是启动图里 <code>url</code> 字段的实际形状；写成
+  <code>/plugins/&lt;id&gt;/client.js</code> 的直链会 404）。
   无论哪种安装形态，最后一步都是 <strong>重启 dsh + 硬刷新浏览器</strong>。
 </div>
 
@@ -150,18 +152,35 @@ pnpm --version</code></pre>
 
 <h3 id="git-install">方式 A：#master 直装（推荐，最简；需要 dsh CLI + pnpm）</h3>
 <div class="step"><span class="step-num">1</span><strong>一条命令</strong>
-  <pre><code>dsh plugin --profile web add github:blackteaYES/dsh-thinking-levels-settings#master</code></pre>
+  <pre><code>dsh plugin --profile web add -w github:blackteaYES/dsh-thinking-levels-settings#master</code></pre>
   <p><strong>前提：本机需要 <code>dsh</code> CLI 和 <code>pnpm</code></strong>（<code>dsh plugin</code> 是
   pnpm 转发器）。没有 pnpm 请看方式 C。</p>
   <p><code>master</code> 分支由 CI 自动维护为<strong>预构建产物分支</strong>——只含 <code>lib/</code>
   与包元数据，不含源码、没有 <code>prepare</code> 脚本，安装即用，reconcile 自动加入
   <code>dsh.profile.bundles</code>：<strong>无需本地构建，pnpm ≥10 也不再需要
   <code>allowBuilds</code> 构建授权</strong>。合并到 main 后自动更新，之后
-  <code>pnpm update</code> 即升级。</p>
+  <code>dsh plugin --profile web update</code> 即升级（会重新查询 <code>master</code>，
+  不需要 <code>-w</code>）。</p>
 </div>
-<div class="note warn"><strong>想锁定确定版本？</strong>用方式 B 的 Release tarball（不可变的版本锚点）。
-  如遇 <code>ERR_PNPM_ADDING_TO_ROOT</code>（workspace-root 保护），加 <code>-w</code>：
-  <code>dsh plugin --profile web add -w github:blackteaYES/dsh-thinking-levels-settings#master</code>。
+<div class="note warn"><strong><code>-w</code>：加上永远没错，所以统一带上。</strong>
+  <p>要不要它取决于 pnpm 版本。</p>
+  <table>
+    <tr><th>pnpm 版本</th><th>不加 <code>-w</code></th><th>加 <code>-w</code></th></tr>
+    <tr><td>&lt; 10.5.0（8.x / 9.x / 10.4.x）</td><td>✗ <code>ERR_PNPM_ADDING_TO_ROOT</code></td><td>✓ 正常</td></tr>
+    <tr><td>≥ 10.5.0（10.5+ / 11 / 12）</td><td>✓ 正常</td><td>✓ 正常（无害）</td></tr>
+  </table>
+  <p>原因：dsh 的 profile 目录本身是 pnpm workspace 根，且它写入的
+  <code>pnpm-workspace.yaml</code> 只有一条 pattern（<code>- .</code>）。pnpm &lt; 10.5.0 只要
+  发现"往 workspace 根加依赖"就拦截；pnpm 10.5.0 起把条件放宽为"pattern 多于一条"才拦截，
+  于是不再报错。加 <code>-w</code> 在两种版本上都是 rc=0。这与装什么包无关（旧 pnpm 上
+  <code>dsh plugin --profile web add left-pad</code> 也会失败）。</p>
+  <p>另外别把 <code>-w</code> 当成 <code>--workspace</code>——后者是另一个参数（含义为
+  "仅当依赖已存在于 workspace 时才添加"），用错行为完全不同。位置也要对：
+  <code>add -w &lt;包&gt;</code>。</p>
+  <p><code>github:</code> 简写与显式 <code>git+https://github.com/….git</code> 是等价的
+  （pnpm 会归一到同一形态），用哪个都行；两者在 HTTPS 不可达时都会回退尝试 SSH
+  （<code>git@github.com:</code>），所以网络受限的环境请把代理配好。</p>
+  <p>想锁定确定版本？用方式 B 的 Release tarball（不可变的版本锚点）。</p>
 </div>
 
 <div class="note"><strong>开发者路径（普通用户勿用）：从 main 源码安装</strong>
@@ -173,7 +192,7 @@ pnpm --version</code></pre>
   <pre><code>allowBuilds:
   "&lt;粘贴 pnpm 错误中打印的完整包键&gt;": true</code></pre>
   <p>然后锁定并重试错误中同一个 commit：
-  <code>dsh plugin --profile web add "github:blackteaYES/dsh-thinking-levels-settings#&lt;sha&gt;"</code>。
+  <code>dsh plugin --profile web add -w "github:blackteaYES/dsh-thinking-levels-settings#&lt;sha&gt;"</code>。
   这项授权允许插件源码在本机执行；只对可信源码授权并锁定 commit。</p>
 </div>
 
@@ -181,7 +200,9 @@ pnpm --version</code></pre>
 <div class="step"><span class="step-num">1</span><strong>拿到发布包（tarball）</strong>
   <p>从 release 页下载 <code>dsh-thinking-levels-settings-&lt;version&gt;.tgz</code>，
   或直接使用直链一步安装（tarball 由 CI 在打 <code>v*</code> tag 时自动构建附加）：</p>
-  <pre><code>dsh plugin --profile web add https://github.com/blackteaYES/dsh-thinking-levels-settings/releases/download/v3.0.0/dsh-thinking-levels-settings-3.0.0.tgz</code></pre>
+  <pre><code>dsh plugin --profile web add -w https://github.com/blackteaYES/dsh-thinking-levels-settings/releases/download/v3.0.0/dsh-thinking-levels-settings-3.0.0.tgz</code></pre>
+  <p><code>-w</code> 统一带上（旧 pnpm &lt; 10.5.0 必需，新版无害）：profile 目录是 pnpm workspace 根，不加会报
+  <code>ERR_PNPM_ADDING_TO_ROOT</code>。</p>
 </div>
 
 <div class="step"><span class="step-num">2</span><strong>安装效果</strong>
@@ -210,8 +231,8 @@ cd /tmp/rel/package</code></pre>
   <pre><code>bash install.sh                    # 默认 profile: web
 DSH_PROFILE=web bash install.sh    # 显式指定
 DSH_HOME=/path bash install.sh     # 覆盖 DSH home</code></pre>
-  <p>脚本会：检测到 <code>dsh</code> + <code>pnpm</code> 都可用时自动走官方路径（dsh plugin add，
-  失败自动 <code>-w</code> 重试），否则走手工路径。重复运行安全（旧版本备份为
+  <p>脚本会：检测到 <code>dsh</code> + <code>pnpm</code> 都可用时自动走官方路径
+  （<code>dsh plugin add -w</code>，<code>-w</code> 统一带上），否则走手工路径。重复运行安全（旧版本备份为
   <code>.previous</code>，依赖与 patch 行不重复添加）。</p>
 </div>
 
@@ -240,7 +261,8 @@ dsh plugin --profile web remove dsh-thinking-levels-settings    # 等价 pnpm re
 <div class="step"><span class="step-num">2</span><strong>核对三处残留</strong>
   <ol>
     <li><strong>package.json</strong>：<code>dependencies</code> 与 <code>dsh.profile.bundles</code>
-      数组里都不应再有 <code>dsh-thinking-levels-settings</code>（remove 不会动 bundles 字段，有则手工删）。
+      数组里都不应再有 <code>dsh-thinking-levels-settings</code>。用 <code>dsh plugin remove</code> 会自动
+      同步 bundles；只有绕过 dsh 直接 <code>pnpm remove</code> 时才需手工删那一行。
     </li>
     <li><strong>影子目录</strong>：<code>ls node_modules/@deepseek-ai</code> 应报不存在或为空；
       若还有真实目录（非符号链接），全是旧插件拖入的副本，整棵删除：
@@ -284,31 +306,47 @@ npm run watch</code></pre>
 
 <h2 id="verify">4. 验证安装是否成功</h2>
 
+<p>文件落点取决于安装方式，先确认自己走的是哪条路：</p>
+<ul>
+  <li><strong>方式 A / B（官方 <code>dsh plugin add</code>，推荐）</strong>：包被 pnpm 装进
+  <code>~/.dsh/profiles/web/node_modules/.pnpm/github.com+blackteaYES+…@&lt;commit&gt;/node_modules/dsh-thinking-levels-settings</code>，
+  且 <code>node_modules/dsh-thinking-levels-settings</code> 是指向它的软链；挂载信息在
+  <code>package.json</code> 的 <code>dsh.profile.bundles</code> 里（<strong>不</strong>写
+  <code>cordis.patch.yml</code>）。</li>
+  <li><strong>方式 C 的回退路径（<code>install.sh</code> 手工安装）</strong>：包在
+  <code>~/.dsh/profiles/web/packages/dsh-thinking-levels-settings/</code>，靠 <code>file:</code>
+  依赖 + <code>cordis.patch.yml</code> 里的挂载行生效。</li>
+</ul>
+
+<div class="note warn"><strong>下面的 <code>curl</code> 必须带 token。</strong>DSH Web 只接受带 token
+的请求，直接 <code>curl</code> 根路径会返回 <code>401 dsh web authentication required</code>。
+token 就在 <code>dsh web</code> 启动时打印的 <code>http://127.0.0.1:3080/?token=…</code> 那条 URL 里，
+原样复制整条 URL 使用即可。<br>
+另外 bundle 的 URL 必须是 boot 行里的 <code>??</code> 组合形式（带 <code>&amp;rev=</code>）；
+<code>/plugins/dsh-thinking-levels-settings/client.js</code> 这种直链会 404。</div>
+
 <table>
   <tr><th>检查项</th><th>命令 / 位置</th><th>期望</th></tr>
   <tr>
-    <td>包目录就位</td>
-    <td><code>ls ~/.dsh/profiles/web/packages/dsh-thinking-levels-settings/lib/</code></td>
-    <td>看到 <code>client.js</code>、<code>index.js</code>、<code>invariant.js</code>、<code>types/</code></td>
+    <td>已安装</td>
+    <td><code>ls ~/.dsh/profiles/web/node_modules/dsh-thinking-levels-settings/</code>（方式 A/B）<br>
+    <code>ls ~/.dsh/profiles/web/packages/dsh-thinking-levels-settings/</code>（方式 C）</td>
+    <td>看到 <code>lib/</code>（<code>client.js</code>、<code>index.js</code>、<code>invariant.js</code>、<code>types/</code>）</td>
   </tr>
   <tr>
-    <td>符号链接建立</td>
-    <td><code>ls -la ~/.dsh/profiles/web/node_modules/ | grep thinking</code></td>
-    <td><code>dsh-thinking-levels-settings -&gt; ../packages/dsh-thinking-levels-settings</code></td>
-  </tr>
-  <tr>
-    <td>patch 行存在</td>
-    <td><code>grep -A1 "ui-thinking-levels-settings" ~/.dsh/profiles/web/cordis.patch.yml</code></td>
-    <td>输出 <code>id: ui-thinking-levels-settings</code> 与 <code>name: dsh-thinking-levels-settings</code></td>
+    <td>挂载信息</td>
+    <td><code>grep -o '"dsh-thinking-levels-settings"' ~/.dsh/profiles/web/package.json</code>（方式 A/B）<br>
+    <code>grep -A1 "ui-thinking-levels-settings" ~/.dsh/profiles/web/cordis.patch.yml</code>（方式 C）</td>
+    <td>出现在 <code>dsh.profile.bundles</code>；或输出 <code>id</code> 与 <code>name</code> 两行</td>
   </tr>
   <tr>
     <td>包被 client-modules 暴露</td>
-    <td><code>curl -s http://127.0.0.1:3080/ | grep -o '"id":"dsh-thinking-levels-settings"[^}]*}'</code></td>
-    <td>出现 <code>"url":"/plugins/dsh-thinking-levels-settings/client.js?rev=…"</code></td>
+    <td><code>curl -s "http://127.0.0.1:3080/?token=&lt;TOKEN&gt;" | grep -o '"id":"dsh-thinking-levels-settings"[^}]*}'</code></td>
+    <td>出现 <code>"url":"/plugins/??dsh-thinking-levels-settings/client.js&amp;rev=…"</code></td>
   </tr>
   <tr>
     <td>bundle 可拉取</td>
-    <td><code>curl -s http://127.0.0.1:3080/plugins/dsh-thinking-levels-settings/client.js | head -c 60</code></td>
+    <td>取上一行输出里的 <code>url</code> 值：<code>curl -s --path-as-is "http://127.0.0.1:3080$URL" | head -c 60</code></td>
     <td>以 <code>window.__ModuleLoader__.load({</code> 开头</td>
   </tr>
   <tr>
@@ -340,7 +378,7 @@ npm run bundle   # 确保 lib/ 是最新产物（含 invariant.js 与 types/）<
   <p>把 <code>dsh-thinking-levels-settings-&lt;version&gt;.tgz</code>（约 20KB）发给目标机（放到 GitHub
   Release、邮件、网盘均可）。目标机有两种安装路径：</p>
   <ul>
-    <li><strong>官方路径</strong>（有 dsh CLI + pnpm）：<code>dsh plugin --profile web add ./dsh-thinking-levels-settings-&lt;version&gt;.tgz</code></li>
+    <li><strong>官方路径</strong>（有 dsh CLI + pnpm）：<code>dsh plugin --profile web add -w ./dsh-thinking-levels-settings-&lt;version&gt;.tgz</code>（<code>-w</code> 统一带上）</li>
     <li><strong>回退路径</strong>（没有 pnpm）：解包后 <code>bash install.sh</code>（脚本会自动检测，有 dsh+pnpm 就走官方路径，否则走手工路径）</li>
   </ul>
 </div>
@@ -361,13 +399,13 @@ ls dsh-thinking-levels-settings/lib/   # 确认 client.js / index.js / invariant
       <pre><code>- insert:
     - id: ui-thinking-levels-settings
       name: dsh-thinking-levels-settings</code></pre></li>
-    <li><code>cd ~/.dsh/profiles/web && npm install --package-lock=false --ignore-scripts</code>，重启 <code>dsh web</code>，硬刷新浏览器</li>
+    <li><code>cd ~/.dsh/profiles/web &amp;&amp; npm install --package-lock=false --ignore-scripts</code>，重启 <code>dsh web</code>，硬刷新浏览器</li>
   </ol>
 </div>
 
 <div class="note ok"><strong>一键脚本已内置</strong>：发布包（tarball）自带 <code>install.sh</code>，解包后以
   <code>bash install.sh</code> 运行即可——自动检测环境：有 dsh + pnpm 走官方
-  <code>dsh plugin add</code> 路径（失败自动 <code>-w</code> 重试），否则走手工路径（复制包目录 +
+  <code>dsh plugin add -w</code> 路径（<code>-w</code> 统一带上），否则走手工路径（复制包目录 +
   <code>package.json</code> 注入 <code>file:</code> 依赖 + <code>cordis.patch.yml</code> 追加挂载行）。
   幂等，可重复运行。也可显式指定：<code>DSH_PROFILE=web bash install.sh</code>。</div>
 
@@ -443,6 +481,12 @@ rm -rf node_modules/dsh-thinking-levels-settings packages/dsh-thinking-levels-se
   <tr><td><code>src/index.ts</code></td><td>node 半入口（空 apply）</td><td>源码维护</td></tr>
   <tr><td><code>src/client/index.ts</code></td><td>浏览器半：<code>settings.section</code> 槽注册 + 页面组件</td><td>源码维护</td></tr>
   <tr><td><code>src/client/menu.ts</code></td><td>「更多 ▾」溢出菜单：低频筛选与导出/导入</td><td>源码维护</td></tr>
+  <tr><td><code>src/client/icons.ts</code></td><td>内联 SVG 图标（16px 线性，不 import 平台图标包）</td><td>源码维护</td></tr>
+  <tr><td><code>src/client/levels.ts</code></td><td>纯逻辑：档位词表、投影、校验、摘要、预设、JSON 导入导出</td><td>源码维护</td></tr>
+  <tr><td><code>src/client/locale.ts</code></td><td><code>{zh, en}</code> 字典 + locale 服务缺席时的回退 translator</td><td>源码维护</td></tr>
+  <tr><td><code>src/client/model-form.ts</code></td><td>模型展开区：三种推理模式 + 档位 + 输入能力 + 预览</td><td>源码维护</td></tr>
+  <tr><td><code>src/client/provider-group.ts</code></td><td>提供方分组与双层折叠渲染</td><td>源码维护</td></tr>
+  <tr><td><code>src/client/settings-wire.ts</code></td><td>版本容错 settings 通道（纯逻辑）</td><td>源码维护</td></tr>
   <tr><td><code>src/invariant.ts</code></td><td>invariant companion（包所有权注册）</td><td>源码维护</td></tr>
   <tr><td><code>tsdown.config.ts</code></td><td>构建配置（官方 tsdown.client.ts 形态）</td><td>源码维护</td></tr>
   <tr><td><code>lib/index.js</code></td><td>构建产物：node 半</td><td><code>npm run bundle</code></td></tr>
@@ -457,8 +501,10 @@ rm -rf node_modules/dsh-thinking-levels-settings packages/dsh-thinking-levels-se
   <strong>官方契约速记</strong>：client 插件 = <code>dsh.client</code> 清单（platform: web）+
   <code>exports["./client"]</code> → 构建产物 <code>lib/client.js</code>（<code>window.__ModuleLoader__.load</code>
   闭包工厂，react 等平台模块走注入 require）+ <code>exports["./invariant"]</code> +
-  <code>exports["./src/*"]</code> + <code>files</code> 只含产物与文档。安装侧 = 包目录（file: 依赖）+
-  一行 patch。参考：deepseek-harness <code>packages/client/AGENTS.md</code>、
+  <code>exports["./src/*"]</code> + <code>files</code> 只含产物与文档。安装侧 =
+  <code>dsh.bundle.patch</code>（官方 <code>dsh plugin add</code> 自动挂载进
+  <code>dsh.profile.bundles</code>）或包目录 + 一行 patch（手工回退路径）。
+  参考：deepseek-harness <code>packages/client/AGENTS.md</code>、
   <code>docs/architecture.zh.md</code>、<code>packages/client/tsdown.client.ts</code>。
 </div>
 

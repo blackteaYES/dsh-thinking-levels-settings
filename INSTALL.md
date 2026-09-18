@@ -18,8 +18,15 @@
 以及接入 DSH 自带 locale 服务的 `zh`/`en` 双语。
 
 纯客户端插件：node 半（`lib/index.js`）`apply` 为空；浏览器半（`lib/client.js`）以官方
-`window.__ModuleLoader__.load` 闭包工厂注册 `settings.section` 槽位贡献。安装不需要改
-`dsh.profile.bundles`，也不需要 `dsh.bundle` —— 以一行 patch 挂载，与官方 `dsh plugin add` 语义一致。
+`window.__ModuleLoader__.load` 闭包工厂注册 `settings.section` 槽位贡献。
+
+挂载方式分两条（都由工具完成，**用户不需要手工编辑任何文件**）：
+
+- **官方 `dsh plugin add`（方式 A / B，推荐）**：包内声明了 `dsh.bundle.patch`
+  （指向 `cordis.patch.yml`），`reconcilePlugins` 识别它并把包自动加入 profile 的
+  `dsh.profile.bundles`。
+- **手工回退路径（方式 D / `install.sh` 路径 B）**：改成在 profile 的
+  `cordis.patch.yml` 里追加一行 patch 挂载，不碰 `dsh.profile.bundles`。
 
 ## 包结构
 
@@ -30,6 +37,7 @@ src/client/index.ts         # 浏览器半：槽注册 + 页面外壳 + 搜索�
 src/client/levels.ts        # 纯逻辑：档位词表、投影、校验、摘要、预设、JSON 导入导出
 src/client/locale.ts        # {zh, en} 字典 + locale 服务缺席时的回退 translator
 src/client/model-form.ts    # 模型展开区：三种推理模式 + 档位 + 输入能力 + 预览
+src/client/icons.ts         # 内联 SVG 图标（16px 线性，不 import 平台图标包）
 src/client/provider-group.ts# 提供方分组与双层折叠渲染
 src/client/menu.ts          # 「更多 ▾」溢出菜单（低频筛选 + 导出/导入）
 src/client/settings-wire.ts # 版本容错 settings 通道（纯逻辑，可独立测试）
@@ -83,23 +91,33 @@ command -v pnpm
 **前提：本机需要 `dsh` CLI 和 `pnpm`**（`dsh plugin` 是 pnpm 转发器）。没有 pnpm 请看方式 C。
 
 ```sh
-dsh plugin --profile web add github:blackteaYES/dsh-thinking-levels-settings#master
+dsh plugin --profile web add -w github:blackteaYES/dsh-thinking-levels-settings#master
 ```
 
 `master` 分支由 CI 自动维护为**预构建产物分支**（只含 `lib/` 与包元数据，无源码、没有
 `prepare` 脚本），安装即用，reconcile 自动加入 `dsh.profile.bundles`：
 
+- **`-w` 要不要加取决于 pnpm 版本，但加上永远没错，所以统一带上**（`-w` =
+  pnpm 的 `--workspace-root`）：dsh 的 profile 目录是 pnpm workspace 根，且 dsh 写入的
+  `pnpm-workspace.yaml` 只有一条 pattern（`- .`）。pnpm < 10.5.0 检测到"往 workspace 根加依赖"
+  会以 `ERR_PNPM_ADDING_TO_ROOT` 拦截；pnpm ≥ 10.5.0 把拦截条件放宽为"pattern 多于一条"，
+  于是不再报错。加 `-w` 在两种情况下都是 rc=0：新 pnpm 无视它，旧 pnpm 需要它。这与装什么包无关
+  （`dsh plugin --profile web add left-pad` 在旧 pnpm 上同样会失败）。注意别写成
+  `--workspace`，那是另一个参数
 - **无需本地构建**，pnpm ≥10 也**不再需要 `allowBuilds` 构建授权**
-- 合并到 main 后自动更新；之后 `pnpm update` 即升级到最新构建
-- 如遇 `ERR_PNPM_ADDING_TO_ROOT` 加 `-w`：
-  `dsh plugin --profile web add -w github:blackteaYES/dsh-thinking-levels-settings#master`
+- 合并到 main 后自动更新；之后 `dsh plugin --profile web update` 即升级到最新构建
+  （会重新查询 `master` 分支，不需要 `-w`）
+- 安装过程需联网访问 GitHub（国内环境可走代理：`HTTPS_PROXY=… dsh plugin …`）
+
+> `github:` 简写与显式 `git+https://github.com/….git` 等价（pnpm 归一到同一形态），用哪个都行；
+> 两者在 HTTPS 不可达时都会回退尝试 SSH（`git@github.com:`），网络受限环境请配好代理。
 
 > 想锁定确定版本？用方式 B 的 Release tarball（不可变的版本锚点）。
 
 #### 开发者路径：从 main 源码安装（需构建授权，普通用户勿用）
 
-直接 `github:blackteaYES/dsh-thinking-levels-settings`（不带 `#master`）会克隆源码并在本机执行
-git 依赖的 `prepare` 构建。官方依据：[从 GitHub 安装：构建脚本这道坎](https://deepseek-harness.github.io/deepseek-harness/develop/basic/publish#%E4%BB%8E-github-%E5%AE%89%E8%A3%85-%E6%9E%84%E5%BB%BA%E8%84%9A%E6%9C%AC%E8%BF%99%E9%81%93%E5%9D%8E)
+直接 `github:blackteaYES/dsh-thinking-levels-settings`（不带 `#master`）
+会克隆源码并在本机执行 git 依赖的 `prepare` 构建。官方依据：[从 GitHub 安装：构建脚本这道坎](https://deepseek-harness.github.io/deepseek-harness/develop/basic/publish#%E4%BB%8E-github-%E5%AE%89%E8%A3%85-%E6%9E%84%E5%BB%BA%E8%84%9A%E6%9C%AC%E8%BF%99%E9%81%93%E5%9D%8E)
 
 第一次 `add` 出现 `ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED` 是官方预期的安全拦截。处理：
 
@@ -122,14 +140,11 @@ git 依赖的 `prepare` 构建。官方依据：[从 GitHub 安装：构建脚�
 3. 锁定并重新安装错误中对应的同一个 commit：
 
    ```sh
-   dsh plugin --profile web add "github:blackteaYES/dsh-thinking-levels-settings#<sha>"
+   dsh plugin --profile web add -w "github:blackteaYES/dsh-thinking-levels-settings#<sha>"
    ```
 
 这项授权允许插件源码在 agent 沙箱之外于本机执行。只对可信源码授权并锁定 commit。
 **普通用户请使用方式 A / B 的预构建产物，不需要任何授权。**
-
-> 其他兼容性：**pnpm 8/9 + dsh rc.6** 如遇 `ERR_PNPM_ADDING_TO_ROOT`，加 `-w`：
-> `dsh plugin --profile web add -w github:blackteaYES/dsh-thinking-levels-settings#master`。
 
 ### 方式 B：Release tarball 安装（稳定通道，版本可锁定；需要 dsh CLI + pnpm）
 
@@ -137,8 +152,7 @@ git 依赖的 `prepare` 构建。官方依据：[从 GitHub 安装：构建脚�
 `dsh-thinking-levels-settings-<version>.tgz`，或直接直链一步安装：
 
 ```sh
-dsh plugin --profile web add https://github.com/blackteaYES/dsh-thinking-levels-settings/releases/download/v3.0.0/dsh-thinking-levels-settings-3.0.0.tgz
-# 如遇 ERR_PNPM_ADDING_TO_ROOT 加 -w：dsh plugin --profile web add -w <上面的 URL 或本地路径>
+dsh plugin --profile web add -w https://github.com/blackteaYES/dsh-thinking-levels-settings/releases/download/v3.0.0/dsh-thinking-levels-settings-3.0.0.tgz
 ```
 
 tarball 由 CI 在打 `v*` tag 时自动构建附加；包含 `lib/` 预构建产物与 `install.sh`，
@@ -160,7 +174,8 @@ dsh plugin --profile web remove dsh-thinking-levels-settings    # 等价 pnpm re
 核对三处残留：
 
 1. **package.json**：`dependencies` 与 `dsh.profile.bundles` 数组里都不应再有
-   `dsh-thinking-levels-settings`（remove 不会动 bundles 字段，有则手工删该行）
+   `dsh-thinking-levels-settings`。用 `dsh plugin remove` 时会自动同步（reconcile 负责）；
+   只有绕过 dsh、直接 `pnpm remove` 时才需手工删该行
 2. **影子目录**：`ls node_modules/@deepseek-ai` 应报不存在或为空；若还有真实目录（非符号链接），
    全是旧插件拖入的副本，整棵删除：`rm -rf node_modules/@deepseek-ai`
 3. **拖入的散包**：`ls node_modules | grep -E '^(zod|immer|zustand|fflate|use-sync-external-store|@standard-schema)$'`
@@ -183,7 +198,7 @@ cd /tmp/rel/package
 bash install.sh            # 默认 profile: web；DSH_PROFILE=xxx 可指定
 ```
 
-脚本自动检测：有 `dsh`+`pnpm` 走官方路径（dsh plugin add，失败自动 `-w` 重试），
+脚本自动检测：有 `dsh`+`pnpm` 走官方路径（`dsh plugin add -w`，`-w` 统一带上），
 否则走手工路径（复制包目录 + `package.json` 注入 `file:` 依赖 + `cordis.patch.yml` 追加挂载行）。
 幂等，可重复运行。手工方式本身如下：
 
@@ -251,13 +266,29 @@ tar -czf dsh-thinking-levels-settings.tar.gz dsh-thinking-levels-settings
 
 ## 验证安装
 
+安装方式不同，文件落点也不同，先确认自己走的是哪条路：
+
+- **方式 A / B（官方 `dsh plugin add`，推荐）**：包被 pnpm 装进
+  `~/.dsh/profiles/web/node_modules/.pnpm/github.com+blackteaYES+…@<commit>/node_modules/dsh-thinking-levels-settings`，
+  `node_modules/dsh-thinking-levels-settings` 是指向它的软链；挂载信息在
+  `package.json` 的 `dsh.profile.bundles` 里（**不**写 `cordis.patch.yml`）。
+- **方式 C 的回退路径（`install.sh` 手工路径）**：包在
+  `~/.dsh/profiles/web/packages/dsh-thinking-levels-settings/`，靠 `file:` 依赖 +
+  `cordis.patch.yml` 里的挂载行生效。
+
+> `curl` 校验需要鉴权：DSH Web 只接受带 token 的请求。**token 就在 `dsh web` 启动时打印的
+> `http://127.0.0.1:3080/?token=…` 那条 URL 里**，原样复制整条 URL 即可；直接 `curl` 根路径
+> 会拿到 `401 dsh web authentication required`。
+
 | 检查 | 命令 | 期望 |
 |---|---|---|
-| 包目录 | `ls ~/.dsh/profiles/web/packages/dsh-thinking-levels-settings/lib/` | client.js / index.js / invariant.js / types |
-| 符号链接 | `ls -la ~/.dsh/profiles/web/node_modules/ \| grep thinking` | 指向 `../packages/dsh-thinking-levels-settings` |
-| patch 行 | `grep -A1 ui-thinking-levels-settings ~/.dsh/profiles/web/cordis.patch.yml` | id + name 两行 |
-| boot 暴露 | `curl -s http://127.0.0.1:3080/ \| grep -o '"id":"dsh-thinking-levels-settings"[^}]*}'` | 有 `/plugins/.../client.js?rev=…` |
-| bundle | `curl -s http://127.0.0.1:3080/plugins/dsh-thinking-levels-settings/client.js \| head -c 60` | 以 `window.__ModuleLoader__.load({` 开头 |
+| 已安装 | `ls ~/.dsh/profiles/web/node_modules/dsh-thinking-levels-settings/` | 有 `lib/`（方式 A/B）；或 `ls ~/.dsh/profiles/web/packages/dsh-thinking-levels-settings/`（方式 C 回退） |
+| 挂载信息 | `grep -o '"dsh-thinking-levels-settings"' ~/.dsh/profiles/web/package.json`（方式 A/B）；或 `grep -A1 ui-thinking-levels-settings ~/.dsh/profiles/web/cordis.patch.yml`（方式 C 回退） | 出现在 `dsh.profile.bundles` 里；或 id + name 两行 |
+| boot 暴露 | `curl -s "http://127.0.0.1:3080/?token=<TOKEN>" \| grep -o '"id":"dsh-thinking-levels-settings"[^}]*}'` | 有 `"url":"/plugins/??dsh-thinking-levels-settings/client.js&rev=…"` |
+| bundle 可拉取 | 取上行输出里的 `url`，`curl -s --path-as-is "http://127.0.0.1:3080$URL" \| head -c 60` | 以 `window.__ModuleLoader__.load({` 开头 |
+
+（`<TOKEN>` 换成启动输出里的 token；bundle URL 必须是 boot 行里的 `??` 组合形式，
+`/plugins/dsh-thinking-levels-settings/client.js` 这种直链会 404。）
 
 ## 覆盖更新 / 卸载
 
@@ -286,8 +317,9 @@ v2.2.0 起不再写死平台契约（包名、服务键、响应信封、参数�
 
 1. 括号里 `settings 通道：…` 标出实际命中的 holder 路径 —— 显示"未识别"说明候选表需要补充，
    把该行报文反馈即可定位。
-2. 页签完全不出现：`curl -s http://127.0.0.1:3080/ | grep -o '"id":"dsh-thinking-levels-settings"[^}]*}'`
-   确认 boot 行还在（patch 行被删 / profile 换了会缺）。
+2. 页签完全不出现：`curl -s "http://127.0.0.1:3080/?token=<TOKEN>" | grep -o '"id":"dsh-thinking-levels-settings"[^}]*}'`
+   确认 boot 行还在（patch 行被删 / profile 换了会缺）。`<TOKEN>` 取 `dsh web` 启动输出的
+   `?token=`；漏 token 会拿到 `401 dsh web authentication required`。
 3. boot 日志出现 `pending (waiting for service: slots)`：说明该 DSH 版本连 slots 服务都没挂载，
    属于宿主组合问题而非本插件。
 
